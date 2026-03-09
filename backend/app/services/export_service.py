@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import io
 import logging
-from pathlib import Path
+import xml.sax.saxutils
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
@@ -101,8 +101,8 @@ class ExportService:
                     story_elements.append(img)
                     story_elements.append(Spacer(1, 0.3 * inch))
 
-            # Page text
-            story_elements.append(Paragraph(page.text, body_style))
+            # Page text (escaped for ReportLab XML parsing)
+            story_elements.append(Paragraph(xml.sax.saxutils.escape(page.text), body_style))
             story_elements.append(Spacer(1, 0.3 * inch))
 
             # Page number
@@ -132,8 +132,7 @@ class ExportService:
             img_bytes = base64.b64decode(b64_str)
             img_buffer = io.BytesIO(img_bytes)
             img = RLImage(img_buffer, width=width)
-            # Maintain aspect ratio
-            img.hAlign = "CENTER"
+            img.hAlign = "CENTER"  # center the image horizontally
             return img
         except Exception as e:
             logger.error("Failed to decode image: %s", e)

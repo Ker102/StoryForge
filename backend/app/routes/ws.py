@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import binascii
 import json
 import logging
 
@@ -42,10 +43,21 @@ async def story_websocket(websocket: WebSocket):
 
     session_id = None
     live_service = None
+    send_lock = asyncio.Lock()
 
     try:
         # --- Wait for INIT message ---
-        init_data = await websocket.receive_json()
+        try:
+            init_data = await websocket.receive_json()
+        except json.JSONDecodeError:
+            await websocket.send_json(
+                StatusMessage(
+                    type=WSMessageType.ERROR,
+                    message="Malformed JSON in init message",
+                ).model_dump()
+            )
+            await websocket.close()
+            return
 
         if init_data.get("type") != WSMessageType.INIT:
             await websocket.send_json(
@@ -80,31 +92,34 @@ async def story_websocket(websocket: WebSocket):
 
         # Callback: send agent audio to frontend
         async def on_agent_audio(audio_bytes: bytes) -> None:
-            await websocket.send_json(
-                AgentAudioMessage(
-                    session_id=session_id,
-                    audio_base64=base64.b64encode(audio_bytes).decode("utf-8"),
-                ).model_dump()
-            )
+            async with send_lock:
+                await websocket.send_json(
+                    AgentAudioMessage(
+                        session_id=session_id,
+                        audio_base64=base64.b64encode(audio_bytes).decode("utf-8"),
+                    ).model_dump()
+                )
 
         # Callback: send agent text to frontend
         async def on_agent_text(text: str) -> None:
-            await websocket.send_json(
-                AgentTextMessage(
-                    session_id=session_id,
-                    text=text,
-                ).model_dump()
-            )
+            async with send_lock:
+                await websocket.send_json(
+                    AgentTextMessage(
+                        session_id=session_id,
+                        text=text,
+                    ).model_dump()
+                )
 
         # Callback: handle tool calls from Live API
         async def on_tool_call(name: str, args: dict) -> dict:
             # Send status update to frontend
-            await websocket.send_json(
-                StatusMessage(
-                    session_id=session_id,
-                    message=f"Creating page {args.get('page_number', '...')}...",
-                ).model_dump()
-            )
+            async with send_lock:
+                await websocket.send_json(
+                    StatusMessage(
+                        session_id=session_id,
+                        message=f"Creating page {args.get('page_number', '...')}...",
+                    ).model_dump()
+                )
 
             # Delegate to orchestrator
             return await orchestrator.handle_tool_call(
@@ -116,27 +131,43 @@ async def story_websocket(websocket: WebSocket):
 
         # Callback: send completed page to frontend
         async def on_page_ready(page: Page) -> None:
-            await websocket.send_json(
-                PageUpdateMessage(
-                    session_id=session_id,
-                    page_number=page.number,
-                    text=page.text,
-                    summary=page.summary,
-                    image_base64=page.image_base64,
-                    narration_audio_base64=page.narration_audio_base64,
-                ).model_dump()
-            )
+            async with send_lock:
+                await websocket.send_json(
+                    PageUpdateMessage(
+                        session_id=session_id,
+                        page_number=page.number,
+                        text=page.text,
+                        summary=page.summary,
+                        image_base64=page.image_base64,
+                        narration_audio_base64=page.narration_audio_base64,
+                    ).model_dump()
+                )
 
             # Update Live API context with new story state
             await live_service.update_context(story_state)
 
-        # --- Connect to Live API ---
-        await live_service.connect(
-            story_state=story_state,
-            on_agent_audio=on_agent_audio,
-            on_agent_text=on_agent_text,
-            on_tool_call=on_tool_call,
-        )
+        # --- Connect to Live API (with timeout) ---
+        try:
+            await asyncio.wait_for(
+                live_service.connect(
+                    story_state=story_state,
+                    on_agent_audio=on_agent_audio,
+                    on_agent_text=on_agent_text,
+                    on_tool_call=on_tool_call,
+                ),
+                timeout=30.0,
+            )
+        except asyncio.TimeoutError:
+            async with send_lock:
+                await websocket.send_json(
+                    StatusMessage(
+                        type=WSMessageType.ERROR,
+                        session_id=session_id,
+                        message="Connection to creative companion timed out. Please try again.",
+                    ).model_dump()
+                )
+            await websocket.close()
+            return
 
         await websocket.send_json(
             StatusMessage(
@@ -150,15 +181,30 @@ async def story_websocket(websocket: WebSocket):
             message = await websocket.receive()
 
             if "text" in message:
-                data = json.loads(message["text"])
+                try:
+                    data = json.loads(message["text"])
+                except json.JSONDecodeError:
+                    async with send_lock:
+                        await websocket.send_json(
+                            StatusMessage(
+                                session_id=session_id,
+                                type=WSMessageType.ERROR,
+                                message="Invalid JSON message",
+                            ).model_dump()
+                        )
+                    continue
+
                 msg_type = data.get("type")
 
                 if msg_type == WSMessageType.AUDIO_CHUNK:
                     # Decode and forward audio to Live API
                     audio_b64 = data.get("audio_base64", "")
                     if audio_b64:
-                        audio_bytes = base64.b64decode(audio_b64)
-                        await live_service.send_audio(audio_bytes)
+                        try:
+                            audio_bytes = base64.b64decode(audio_b64)
+                            await live_service.send_audio(audio_bytes)
+                        except binascii.Error:
+                            logger.warning("Invalid base64 audio data")
 
                 elif msg_type == WSMessageType.TEXT_INPUT:
                     # Send text to Live API (secondary feature)
@@ -168,12 +214,13 @@ async def story_websocket(websocket: WebSocket):
 
                 elif msg_type == WSMessageType.EXPORT_REQUEST:
                     # Handled via REST endpoint
-                    await websocket.send_json(
-                        StatusMessage(
-                            session_id=session_id,
-                            message="Use GET /export/pdf/{session_id} to download.",
-                        ).model_dump()
-                    )
+                    async with send_lock:
+                        await websocket.send_json(
+                            StatusMessage(
+                                session_id=session_id,
+                                message="Use GET /export/pdf/{session_id} to download.",
+                            ).model_dump()
+                        )
 
             elif "bytes" in message:
                 # Raw binary audio — forward directly
@@ -184,13 +231,14 @@ async def story_websocket(websocket: WebSocket):
     except Exception as e:
         logger.error("WebSocket error: %s", e, exc_info=True)
         try:
-            await websocket.send_json(
-                StatusMessage(
-                    type=WSMessageType.ERROR,
-                    session_id=session_id,
-                    message=f"Error: {str(e)}",
-                ).model_dump()
-            )
+            async with send_lock:
+                await websocket.send_json(
+                    StatusMessage(
+                        type=WSMessageType.ERROR,
+                        session_id=session_id,
+                        message="Internal server error",
+                    ).model_dump()
+                )
         except Exception:
             pass
     finally:

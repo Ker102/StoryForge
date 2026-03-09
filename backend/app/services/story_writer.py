@@ -66,31 +66,40 @@ class StoryWriterService:
             ),
         )
 
+        raw_text = getattr(response, "text", None)
+
         try:
-            result = json.loads(response.text)
-        except (json.JSONDecodeError, AttributeError) as e:
+            result = json.loads(raw_text or "")
+        except (json.JSONDecodeError, TypeError) as e:
             logger.error("Failed to parse writer response: %s", e)
             # Fallback: wrap raw text as page text
             result = {
-                "text": response.text or "The story continues...",
+                "text": raw_text or "The story continues...",
                 "summary": "Page generated with parsing fallback",
                 "scene_description": "",
                 "new_characters": [],
                 "world_rule_changes": [],
             }
 
-        # Ensure all expected keys exist
+        # Ensure all expected keys exist with correct types
         result.setdefault("text", "")
         result.setdefault("summary", "")
         result.setdefault("scene_description", "")
         result.setdefault("new_characters", [])
         result.setdefault("world_rule_changes", [])
 
+        # Coerce list fields to lists if LLM returned wrong type
+        if not isinstance(result["new_characters"], list):
+            result["new_characters"] = []
+        if not isinstance(result["world_rule_changes"], list):
+            result["world_rule_changes"] = []
+
+        safe_summary = str(result.get("summary", ""))[:80]
         logger.info(
             "Page %d generated: %d chars, summary: %s",
             page_number,
             len(result["text"]),
-            result["summary"][:80],
+            safe_summary,
         )
 
         return result

@@ -6,6 +6,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
+from starlette.concurrency import run_in_threadpool
 
 from app.services.export_service import ExportService
 from app.state.manager import state_manager
@@ -17,7 +18,7 @@ export_service = ExportService()
 
 
 @router.post("/pdf/{session_id}")
-async def export_pdf(session_id: str):
+async def export_pdf(session_id: str) -> Response:
     """Generate and download a PDF storybook.
 
     Args:
@@ -40,7 +41,11 @@ async def export_pdf(session_id: str):
         len(state.pages),
     )
 
-    pdf_bytes = export_service.generate_pdf(state)
+    try:
+        pdf_bytes = await run_in_threadpool(export_service.generate_pdf, state)
+    except Exception:
+        logger.exception("PDF generation failed for session %s", session_id[:8])
+        raise HTTPException(status_code=500, detail="PDF generation failed")
 
     return Response(
         content=pdf_bytes,

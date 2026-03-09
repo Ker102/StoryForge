@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from app.models.story import AgeSetting
 
@@ -24,7 +25,7 @@ CHILDREN_BLOCKED = [
 class SafetyService:
     """Validates generated content for age-appropriateness."""
 
-    async def is_text_safe(self, text: str, age_setting: AgeSetting) -> bool:
+    def is_text_safe(self, text: str, age_setting: AgeSetting) -> bool:
         """Check if story text is safe for the target age group.
 
         Args:
@@ -36,16 +37,16 @@ class SafetyService:
         """
         text_lower = text.lower()
 
-        # Check universal blocked themes
+        # Check universal blocked themes (word-boundary match)
         for theme in BLOCKED_THEMES:
-            if theme in text_lower:
+            if re.search(r'\b' + re.escape(theme) + r'\b', text_lower):
                 logger.warning("Blocked theme found in text: %s", theme)
                 return False
 
         # Additional restrictions for younger children
         if age_setting == AgeSetting.CHILDREN_5_8:
             for word in CHILDREN_BLOCKED:
-                if word in text_lower:
+                if re.search(r'\b' + re.escape(word) + r'\b', text_lower):
                     logger.warning(
                         "Children-blocked word found: %s", word
                     )

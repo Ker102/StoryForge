@@ -103,6 +103,7 @@ class LiveSessionService:
         without bloating its context with full story text.
         """
         if self._session is None:
+            logger.warning("Attempted update_context with no active session")
             return
 
         summary = story_state.get_live_summary()
@@ -122,10 +123,15 @@ class LiveSessionService:
                 await self._receive_task
             except asyncio.CancelledError:
                 pass
+            self._receive_task = None
 
         if self._session:
-            await self._session.__aexit__(None, None, None)
-            self._session = None
+            try:
+                await self._session.__aexit__(None, None, None)
+            except Exception as e:
+                logger.error("Error closing Live session: %s", e)
+            finally:
+                self._session = None
 
         logger.info("Live API session disconnected")
 

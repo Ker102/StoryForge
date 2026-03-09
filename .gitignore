@@ -1,5 +1,5 @@
 # PRD docs (local reference only)
-StoryForge PRD.docx
+StoryForge\ PRD.docx
 StoryForge_PRD_text.txt
 
 # Python
@@ -36,5 +36,5 @@ Thumbs.db
 htmlcov/
 
 # Generated artifacts
-*.pdf
 exports/
+exports/*.pdf

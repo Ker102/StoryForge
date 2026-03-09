@@ -41,11 +41,16 @@ class StoryStateManager:
         Returns:
             The new StoryState.
         """
-        state = StoryState(
-            style=VisualStyle(style),
-            age_setting=AgeSetting(age_setting),
-            seed=seed,
-        )
+        try:
+            state = StoryState(
+                style=VisualStyle(style),
+                age_setting=AgeSetting(age_setting),
+                seed=seed,
+            )
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid style '{style}' or age_setting '{age_setting}': {e}"
+            ) from e
 
         # Log initial seed as a direction
         if seed:
@@ -74,12 +79,15 @@ class StoryStateManager:
             state.direction_log.append(
                 Direction(page=0, type=DirectionType.SEED, input=seed)
             )
-            logger.info("Session %s seed set: %s", session_id, seed[:80])
+            logger.info("Session %s seed set (%d chars)", session_id, len(seed))
 
     def delete_session(self, session_id: str) -> None:
         """Remove a session."""
-        self._sessions.pop(session_id, None)
-        logger.info("Deleted session %s", session_id)
+        removed = self._sessions.pop(session_id, None)
+        if removed:
+            logger.info("Deleted session %s", session_id)
+        else:
+            logger.debug("No session to delete: %s", session_id)
 
     @property
     def active_sessions(self) -> int:

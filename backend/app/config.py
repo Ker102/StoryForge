@@ -1,7 +1,12 @@
 """Environment configuration using Pydantic Settings."""
 
-from pydantic_settings import BaseSettings
 from functools import lru_cache
+import logging
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -9,6 +14,16 @@ class Settings(BaseSettings):
 
     # API Keys
     google_api_key: str = ""
+
+    @field_validator("google_api_key")
+    @classmethod
+    def validate_api_key(cls, v: str) -> str:
+        if not v:
+            logger.warning(
+                "GOOGLE_API_KEY is not set — AI features will fail. "
+                "Set it in .env or as an environment variable."
+            )
+        return v
 
     # Model configuration
     live_model: str = "gemini-live-2.5-flash-preview"

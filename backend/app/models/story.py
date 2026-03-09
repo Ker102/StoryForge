@@ -139,8 +139,14 @@ class StoryState(BaseModel):
         """
         profile = self.age_profile
 
+        writer_role = (
+            "You are a young-adult fiction writer."
+            if self.age_setting == AgeSetting.TEEN_13_17
+            else "You are a children's storybook writer."
+        )
+
         sections = [
-            "You are a children's storybook writer.",
+            writer_role,
             "",
             "=== STORY CONFIGURATION ===",
             f"Visual style: {self.style.value}",
@@ -150,7 +156,7 @@ class StoryState(BaseModel):
             f"Themes: {profile['themes']}",
             f"Target pages: {profile['page_range'][0]}-{profile['page_range'][1]}",
             "",
-            f"=== STORY SEED ===",
+            "=== STORY SEED ===",
             self.seed,
         ]
 
@@ -217,7 +223,7 @@ class StoryState(BaseModel):
             )
 
         char_names = ", ".join(c.name for c in self.characters) if self.characters else "none defined"
-        last_summary = self.pages[-1].summary if self.pages else "none"
+        last_summary = self.pages[-1].summary
 
         return (
             f"Story about: \"{self.seed}\"\n"

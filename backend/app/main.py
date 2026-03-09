@@ -12,11 +12,12 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# CORS — allow all origins during development
+# CORS — permissive during development
+# TODO: restrict allow_origins to frontend URL in production
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,  # cannot use True with wildcard origins
     allow_methods=["*"],
     allow_headers=["*"],
 )

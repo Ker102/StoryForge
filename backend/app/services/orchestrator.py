@@ -57,9 +57,18 @@ class Orchestrator:
             Brief response dict for the Live API agent.
         """
         if tool_name == "generate_story_page":
+            # Server-side validation: override model-provided page_number
+            expected_page = story_state.current_page + 1
+            provided_page = tool_args.get("page_number", expected_page)
+            if provided_page != expected_page:
+                logger.warning(
+                    "Model provided page_number=%d, expected=%d — overriding",
+                    provided_page,
+                    expected_page,
+                )
             return await self._generate_page(
                 story_state=story_state,
-                page_number=tool_args.get("page_number", story_state.current_page + 1),
+                page_number=expected_page,
                 user_direction=tool_args.get("user_direction", ""),
                 on_page_ready=on_page_ready,
             )
@@ -102,7 +111,7 @@ class Orchestrator:
         page_text = writer_result["text"]
 
         # Safety check on text
-        if not await self.safety.is_text_safe(page_text, story_state.age_setting):
+        if not self.safety.is_text_safe(page_text, story_state.age_setting):
             logger.warning("Page text failed safety check, regenerating...")
             writer_result = await self.story_writer.generate_page(
                 story_state=story_state,
@@ -147,17 +156,21 @@ class Orchestrator:
         )
         story_state.pages.append(new_page)
 
-        # Update characters
+        # Update characters (deduplicate by name)
+        existing_names = {c.name.lower().strip() for c in story_state.characters}
         for char_data in writer_result.get("new_characters", []):
             if isinstance(char_data, dict):
-                story_state.characters.append(
-                    Character(
-                        name=char_data.get("name", "Unknown"),
-                        traits=char_data.get("traits", []),
-                        visual_description=char_data.get("visual_description", ""),
-                        first_appearance_page=page_number,
+                name = char_data.get("name", "Unknown")
+                if name.lower().strip() not in existing_names:
+                    story_state.characters.append(
+                        Character(
+                            name=name,
+                            traits=char_data.get("traits", []),
+                            visual_description=char_data.get("visual_description", ""),
+                            first_appearance_page=page_number,
+                        )
                     )
-                )
+                    existing_names.add(name.lower().strip())
 
         # Update world rules
         for rule in writer_result.get("world_rule_changes", []):

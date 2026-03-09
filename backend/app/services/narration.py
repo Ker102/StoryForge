@@ -36,6 +36,10 @@ class NarrationService:
         """
         logger.info("Generating narration for %d chars of text", len(text))
 
+        if not text.strip():
+            logger.warning("Empty text provided for narration, skipping")
+            return None
+
         try:
             response = await self.client.aio.models.generate_content(
                 model=self.model,
@@ -65,5 +69,5 @@ class NarrationService:
             return None
 
         except Exception as e:
-            logger.error("Narration generation failed: %s", e)
+            logger.exception("Narration generation failed")
             return None

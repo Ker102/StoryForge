@@ -83,6 +83,7 @@ export default function Home() {
 
   // State for selections
   const [obStep, setObStep] = useState(0);
+  const [hasOnboarded, setHasOnboarded] = useState(false);
   const [selectedMode, setSelectedMode] = useState('ch');
   const [selectedStyle, setSelectedStyle] = useState('wc');
   const [selectedLength, setSelectedLength] = useState('6 pages');
@@ -118,7 +119,7 @@ export default function Home() {
         <div className="splash-bottom">
           <div className="splash-logo">Story<em>Forge</em></div>
           <div className="splash-tag">Speak a sentence. Get a book.</div>
-          <button className="btn-gold" onClick={() => go('s2')}>Begin Your Story <span className="btn-arrow">→</span></button>
+          <button className="btn-gold" onClick={() => go(hasOnboarded ? 's7' : 's2')}>{hasOnboarded ? 'Open Library' : 'Begin Your Story'} <span className="btn-arrow">→</span></button>
           <div className="splash-link">Already have an account? <a href="#">Sign in</a></div>
         </div>
       </div>
@@ -222,10 +223,10 @@ export default function Home() {
         </div>
         
         <div className="ob-actions">
-          <button className="btn-ghost" onClick={() => go('s3')}>Skip</button>
+          <button className="btn-ghost" onClick={() => { setHasOnboarded(true); go('s7'); }}>Skip</button>
           <button className="btn-primary" onClick={() => {
             if (obStep < 2) setObStep(obStep + 1);
-            else go('s3');
+            else { setHasOnboarded(true); go('s7'); }
           }}>{obStep < 2 ? 'Next →' : 'Get Started →'}</button>
         </div>
       </div>
@@ -233,7 +234,7 @@ export default function Home() {
       {/* ── S3 MODE SELECT ── */}
       <div className={getScreenClass('s3')} id="s3">
         <div className="topbar">
-          <button className="btn-back" aria-label="Go back" onClick={() => go('s2')}>←</button>
+          <button className="btn-back" aria-label="Go back" onClick={() => go(hasOnboarded ? 's7' : 's1')}>←</button>
           <button className="btn-skip-txt" onClick={() => go('s4')}>Skip</button>
         </div>
         <div className="ms-head">
@@ -416,7 +417,7 @@ export default function Home() {
           <div><div className="lib-greet">Good evening,</div><div className="lib-name">Amara 👋</div></div>
           <div className="lib-avatar">🧒</div>
         </div>
-        <div role="button" tabIndex={0} className="new-card" onClick={() => go('s4')} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); go('s4'); } }}>
+        <div role="button" tabIndex={0} className="new-card" onClick={() => go('s3')} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); go('s3'); } }}>
           <div className="nc-ico">🎙️</div>
           <div><div className="nc-title">New Story</div><div className="nc-sub">Speak a sentence. Get a book.</div></div>
           <div className="nc-arrow">→</div>
@@ -446,7 +447,7 @@ export default function Home() {
           {[
             { id: 'Home', ico: '🏠' },
             { id: 'Library', ico: '📚' },
-            { id: 'Create', ico: '✨', action: () => go('s4') },
+            { id: 'Create', ico: '✨', action: () => go('s3') },
             { id: 'Discover', ico: '🔍' },
             { id: 'Profile', ico: '👤' }
           ].map(t => (

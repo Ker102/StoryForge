@@ -62,6 +62,8 @@ body{
   flex-shrink:0;
   display:flex;
   flex-direction:column;
+  /* Add centering for larger screens to app container itself too just in case */
+  margin: 0 auto;
 }
 
 /* On larger screens: show as floating card */
@@ -74,8 +76,6 @@ body{
       0 0 0 1px rgba(255,255,255,0.02) inset,
       0 48px 120px rgba(0,0,0,0.8),
       0 0 100px rgba(85,97,232,0.1);
-    /* For centered layout on wide screens */
-    margin: 0 auto;
   }
 }
 

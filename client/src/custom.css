@@ -493,6 +493,7 @@ body{
 .s-card:active{transform:none;opacity:.88}
 .sc-cover{height:clamp(84px,12dvh,108px);display:flex;align-items:center;justify-content:center;font-size:clamp(28px,6vw,38px);position:relative}
 .scc1{background:linear-gradient(135deg,#1c2440,#2a2860)}.scc2{background:linear-gradient(135deg,#2a1840,#3d1a5a)}.scc3{background:linear-gradient(135deg,#401828,#5a1830)}
+.scc4{background:linear-gradient(135deg,#183240,#1a5a4b)}.scc5{background:linear-gradient(135deg,#403218,#5a451a)}.scc6{background:linear-gradient(135deg,#18403d,#1a5a54)}
 .sc-badge{position:absolute;top:7px;right:7px;background:rgba(0,0,0,.45);border-radius:7px;padding:2px 6px;font-size:9px;font-weight:700;color:white}
 .sc-info{padding:10px 11px 12px}
 .sc-title{font-size:var(--t-xs);font-weight:800;color:var(--ink);margin-bottom:2px;line-height:1.3}

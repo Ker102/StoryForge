@@ -444,6 +444,18 @@ export default function Home() {
             <div className="sc-cover scc3">🐉<div className="sc-badge">12 pp</div></div>
             <div className="sc-info"><div className="sc-title">The Last Dragon Keeper</div><div className="sc-meta">Page 7 · Cinematic</div></div>
           </div>
+          <div className="s-card">
+            <div className="sc-cover scc4">🦊<div className="sc-badge">10 pp</div></div>
+            <div className="sc-info"><div className="sc-title">The Midnight Fox</div><div className="sc-meta">Finished · Ink</div></div>
+          </div>
+          <div className="s-card">
+            <div className="sc-cover scc5">🤖<div className="sc-badge">14 pp</div></div>
+            <div className="sc-info"><div className="sc-title">Robot's First Friend</div><div className="sc-meta">Page 5 · Vector</div></div>
+          </div>
+          <div className="s-card">
+            <div className="sc-cover scc6">🌲<div className="sc-badge">8 pp</div></div>
+            <div className="sc-info"><div className="sc-title">The Whispering Woods</div><div className="sc-meta">Finished · Watercolour</div></div>
+          </div>
         </div>
 
         <div className="tabbar">

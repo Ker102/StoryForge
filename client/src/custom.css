@@ -282,7 +282,7 @@ body{
 .ms-title{font-family:'Lora',Georgia,serif;font-size:var(--t-xl);font-weight:700;color:var(--ink);line-height:1.18}
 .ms-title em{font-style:italic}
 .ms-sub{font-size:var(--t-sm);font-weight:500;color:var(--dm);margin-top:5px;line-height:1.5}
-.ms-list{flex:1;padding:clamp(8px,1.5dvh,14px) var(--sp-md) 0;display:flex;flex-direction:column;gap:clamp(7px,1.2dvh,12px);overflow-y:auto;min-height:0}
+.ms-list{flex:1;padding:clamp(8px,1.5dvh,14px) var(--sp-md) 0;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:max-content;gap:clamp(10px,1.5dvh,14px);overflow-y:auto;min-height:0}
 .ms-list::-webkit-scrollbar{display:none}
 .mcard{border-radius:18px;overflow:hidden;cursor:pointer;border:2px solid transparent;position:relative;transition:border-color .22s,transform .18s,box-shadow .22s;box-shadow:0 2px 12px rgba(10,12,30,.07)}
 .mcard:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(10,12,30,.12)}
@@ -296,7 +296,7 @@ body{
 .mc-banner-te{background:linear-gradient(90deg,#5561e8,#a0aaff)}
 .mc-banner-cr{background:linear-gradient(90deg,#d04080,#f472b6)}
 .mc-banner-ed{background:linear-gradient(90deg,#1a9e6a,#6ee7a0)}
-.mc-inner{padding:clamp(10px,1.8dvh,15px) clamp(12px,2.5vw,17px);display:flex;align-items:center;gap:clamp(10px,2vw,14px)}
+.mc-inner{padding:clamp(12px,2dvh,18px) clamp(10px,1.5vw,14px);display:flex;flex-direction:column;align-items:center;text-align:center;gap:clamp(8px,1.2dvh,12px);height:100%}
 .mc-ch .mc-inner{background:linear-gradient(135deg,#fffbf5,#fff8ec)}
 .mc-te .mc-inner{background:linear-gradient(135deg,#f8f8ff,#f0f2ff)}
 .mc-cr .mc-inner{background:linear-gradient(135deg,#fff8fb,#fdf0f5)}

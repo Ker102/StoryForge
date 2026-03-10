@@ -190,29 +190,29 @@ export default function Home() {
           </div>
         </div>
         
-        <div className="ob-body" style={{ position: 'relative' }}>
+        <div className="ob-body" style={{ display: 'grid', placeItems: 'center' }}>
           {/* Step 0 Content */}
-          <div style={{ opacity: obStep === 0 ? 1 : 0, transition: 'opacity 0.4s ease', pointerEvents: obStep === 0 ? 'auto' : 'none', position: 'absolute', inset: 'var(--sp-md) var(--sp-lg) 0', display: 'flex', flexDirection: 'column', gap: 'var(--sp-xs)' }}>
-            <div className="ob-h1">Speak your idea.<br/><em>Watch it become a book.</em></div>
-            <div className="ob-p">One sentence is all it takes. StoryForge plans the full arc, generates illustrations, and narrates — all at once.</div>
+          <div style={{ gridArea: '1/1', opacity: obStep === 0 ? 1 : 0, transition: 'opacity 0.4s ease', pointerEvents: obStep === 0 ? 'auto' : 'none', display: 'flex', flexDirection: 'column', gap: 'var(--sp-md)', width: '100%' }}>
+            <div className="ob-h1" style={{ fontSize: 'clamp(32px, 8vw, 42px)' }}>Speak your idea.<br/><em>Watch it become a book.</em></div>
+            <div className="ob-p" style={{ fontSize: 'clamp(16px, 4vw, 18px)' }}>One sentence is all it takes. StoryForge plans the full arc, generates illustrations, and narrates — all at once.</div>
             <div className="ob-pills">
               <div className="ob-pill"><div className="op-dot" style={{background:'var(--amber)'}}></div>Real-time voice</div>
             </div>
           </div>
 
           {/* Step 1 Content */}
-          <div style={{ opacity: obStep === 1 ? 1 : 0, transition: 'opacity 0.4s ease', pointerEvents: obStep === 1 ? 'auto' : 'none', position: 'absolute', inset: 'var(--sp-md) var(--sp-lg) 0', display: 'flex', flexDirection: 'column', gap: 'var(--sp-xs)' }}>
-            <div className="ob-h1">Stunning Art.<br/><em>In your chosen style.</em></div>
-            <div className="ob-p">From delicate watercolours to vibrant pixel art, every page is beautifully illustrated to match your story's mood.</div>
+          <div style={{ gridArea: '1/1', opacity: obStep === 1 ? 1 : 0, transition: 'opacity 0.4s ease', pointerEvents: obStep === 1 ? 'auto' : 'none', display: 'flex', flexDirection: 'column', gap: 'var(--sp-md)', width: '100%' }}>
+            <div className="ob-h1" style={{ fontSize: 'clamp(32px, 8vw, 42px)' }}>Stunning Art.<br/><em>In your chosen style.</em></div>
+            <div className="ob-p" style={{ fontSize: 'clamp(16px, 4vw, 18px)' }}>From delicate watercolours to vibrant pixel art, every page is beautifully illustrated to match your story's mood.</div>
             <div className="ob-pills">
               <div className="ob-pill"><div className="op-dot" style={{background:'var(--indigo)'}}></div>Illustrations</div>
             </div>
           </div>
 
           {/* Step 2 Content */}
-          <div style={{ opacity: obStep === 2 ? 1 : 0, transition: 'opacity 0.4s ease', pointerEvents: obStep === 2 ? 'auto' : 'none', position: 'absolute', inset: 'var(--sp-md) var(--sp-lg) 0', display: 'flex', flexDirection: 'column', gap: 'var(--sp-xs)' }}>
-            <div className="ob-h1">Sit back.<br/><em>And listen.</em></div>
-            <div className="ob-p">Warm, dynamic voices bring your characters to life. Share the final interactive book with family and friends.</div>
+          <div style={{ gridArea: '1/1', opacity: obStep === 2 ? 1 : 0, transition: 'opacity 0.4s ease', pointerEvents: obStep === 2 ? 'auto' : 'none', display: 'flex', flexDirection: 'column', gap: 'var(--sp-md)', width: '100%' }}>
+            <div className="ob-h1" style={{ fontSize: 'clamp(32px, 8vw, 42px)' }}>Sit back.<br/><em>And listen.</em></div>
+            <div className="ob-p" style={{ fontSize: 'clamp(16px, 4vw, 18px)' }}>Warm, dynamic voices bring your characters to life. Share the final interactive book with family and friends.</div>
             <div className="ob-pills">
               <div className="ob-pill"><div className="op-dot" style={{background:'var(--teal)'}}></div>Live narration</div>
             </div>

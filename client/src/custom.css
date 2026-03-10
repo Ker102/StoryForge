@@ -184,7 +184,7 @@ body{
 ───────────────────────────────────────── */
 #s2{background:var(--day)}
 .ob-hero{
-  flex:0 0 clamp(220px,38dvh,310px);
+  flex:0 0 clamp(300px, 55dvh, 450px);
   position:relative;overflow:hidden;
   background:linear-gradient(175deg,#080b20,#111438 35%,#1a1040 65%,#0e1628);
 }
@@ -252,7 +252,7 @@ body{
 .ob-dots{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:5}
 .od{width:6px;height:6px;border-radius:3px;background:rgba(255,255,255,.2);transition:all .3s}
 .od.on{width:24px;background:var(--gold);box-shadow:0 0 8px rgba(245,197,24,.5)}
-.ob-body{flex:1;padding:0 var(--sp-lg);display:flex;flex-direction:column;gap:var(--sp-xs);overflow:hidden;min-height:0;justify-content:center}
+.ob-body{flex:1;padding:0 var(--sp-lg);display:flex;flex-direction:column;gap:var(--sp-xs);overflow:hidden;min-height:0;justify-content:flex-start;padding-top:var(--sp-md)}
 .ob-eyebrow{font-size:var(--t-xs);font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--indigo);display:flex;align-items:center;gap:8px}
 .ob-line{flex:1;height:1px;background:rgba(85,97,232,.15)}
 .ob-h1{font-family:'Lora',Georgia,serif;font-size:var(--t-xl);font-weight:700;color:var(--ink);line-height:1.22}
@@ -486,9 +486,8 @@ body{
 .sec-row{display:flex;align-items:center;justify-content:space-between;padding:clamp(20px,3dvh,28px) var(--sp-md) 12px;flex-shrink:0}
 .sec-title{font-size:var(--t-lg);font-weight:800;color:var(--ink)}
 .sec-link{font-size:var(--t-xs);font-weight:700;color:var(--dm)}
-.s-row{display:flex;gap:clamp(10px,2vw,14px);overflow-x:auto;padding:0 var(--sp-md) 4px;flex-shrink:0}
-.s-row::-webkit-scrollbar{display:none}
-.s-card{flex-shrink:0;width:clamp(120px,30vw,148px);border-radius:18px;overflow:hidden;background:white;border:1px solid var(--db);cursor:pointer;box-shadow:0 3px 14px rgba(10,12,30,.09);transition:transform .16s,box-shadow .16s}
+.s-row{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(10px,2vw,14px);padding:0 var(--sp-md) var(--sp-md);flex-shrink:0}
+.s-card{width:100%;border-radius:18px;overflow:hidden;background:white;border:1px solid var(--db);cursor:pointer;box-shadow:0 3px 14px rgba(10,12,30,.09);transition:transform .16s,box-shadow .16s}
 .s-card:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(10,12,30,.14)}
 .s-card:active{transform:none;opacity:.88}
 .sc-cover{height:clamp(84px,12dvh,108px);display:flex;align-items:center;justify-content:center;font-size:clamp(28px,6vw,38px);position:relative}

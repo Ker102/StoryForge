@@ -82,6 +82,7 @@ export default function Home() {
   }, []);
 
   // State for selections
+  const [obStep, setObStep] = useState(0);
   const [selectedMode, setSelectedMode] = useState('ch');
   const [selectedStyle, setSelectedStyle] = useState('wc');
   const [selectedLength, setSelectedLength] = useState('6 pages');

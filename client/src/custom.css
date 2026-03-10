@@ -255,9 +255,9 @@ body{
 .ob-body{flex:1;padding:0 var(--sp-lg);display:flex;flex-direction:column;gap:var(--sp-xs);overflow:hidden;min-height:0;justify-content:flex-start;padding-top:var(--sp-md)}
 .ob-eyebrow{font-size:var(--t-xs);font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--indigo);display:flex;align-items:center;gap:8px}
 .ob-line{flex:1;height:1px;background:rgba(85,97,232,.15)}
-.ob-h1{font-family:'Lora',Georgia,serif;font-size:var(--t-xl);font-weight:700;color:var(--ink);line-height:1.22}
+.ob-h1{font-family:'Lora',Georgia,serif;font-size:clamp(28px,7vw,36px);font-weight:700;color:var(--ink);line-height:1.22;margin-bottom:8px}
 .ob-h1 em{font-style:italic;color:var(--indigo)}
-.ob-p{font-size:var(--t-sm);font-weight:500;color:var(--dm);line-height:1.62}
+.ob-p{font-size:clamp(15px,3.8vw,17px);font-weight:500;color:var(--dm);line-height:1.62}
 .ob-pills{display:flex;gap:7px;flex-wrap:wrap}
 .ob-pill{display:flex;align-items:center;gap:6px;background:white;border:1.5px solid var(--db);border-radius:24px;padding:5px 12px;font-size:var(--t-xs);font-weight:700;color:var(--ink);box-shadow:0 2px 8px rgba(10,12,30,.06)}
 .op-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
@@ -504,10 +504,11 @@ body{
 .gpill:hover{border-color:var(--db2)}
 .gpill.on{background:var(--ink);color:white;border-color:var(--ink);box-shadow:0 4px 14px rgba(10,12,30,.2)}
 .tabbar{position:absolute;bottom:0;left:0;right:0;border-top:1px solid var(--db);display:flex;background:white;padding:8px 0 calc(10px + var(--safe-bot));z-index:10}
-.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;transition:opacity .15s}
-.tab:hover{opacity:.65}
-.tab-ico{font-size:clamp(18px,4vw,22px)}
-.tab-lbl{font-size:var(--t-xs);font-weight:700;color:var(--dm)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;transition:opacity .15s}
+.tab:hover{opacity:.8}
+.tab-ico{font-size:clamp(18px,4vw,22px);transition:transform .2s;color:var(--dm)}
+.tab-lbl{font-size:var(--t-xs);font-weight:700;color:var(--dm);transition:color .2s}
+.tab.on .tab-ico{transform:translateY(-2px);color:var(--ink)}
 .tab.on .tab-lbl{color:var(--ink)}
 
 /* ─────────────────────────────────────────

@@ -16,6 +16,11 @@ export default function Home() {
     setExitScreen(activeScreen);
     setActiveScreen(id);
     setTimeout(() => setExitScreen(null), 380);
+
+    // Sync tab selection with screen changes
+    if (id === 's1' || id === 's2') setSelectedTab('Home');
+    else if (id === 's7' || id === 's8') setSelectedTab('Library');
+    else if (['s3', 's4', 's5', 's6'].includes(id)) setSelectedTab('Create');
   };
 
   const getScreenClass = (id: string) => {
@@ -459,8 +464,8 @@ export default function Home() {
 
         <div className="tabbar">
           {[
-            { id: 'Home', ico: '🏠' },
-            { id: 'Library', ico: '📚' },
+            { id: 'Home', ico: '🏠', action: () => go('s1') },
+            { id: 'Library', ico: '📚', action: () => go('s7') },
             { id: 'Create', ico: '✨', action: () => go('s3') },
             { id: 'Profile', ico: '👤' }
           ].map(t => (

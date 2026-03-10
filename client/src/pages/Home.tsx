@@ -422,7 +422,15 @@ export default function Home() {
           <div><div className="nc-title">New Story</div><div className="nc-sub">Speak a sentence. Get a book.</div></div>
           <div className="nc-arrow">→</div>
         </div>
-        <div className="sec-row"><span className="sec-title">Continue Reading</span></div>
+        
+        <div className="sec-row"><span className="sec-title">Browse</span><span className="sec-link">See all →</span></div>
+        <div className="genre-row">
+          {['All', 'Adventure', 'Fantasy', 'Mystery', 'Animals'].map(g => (
+            <div role="button" tabIndex={0} key={g} className={`gpill ${selectedGenre === g ? 'on' : ''}`} onClick={() => setSelectedGenre(g)} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); setSelectedGenre(g); } }}>{g}</div>
+          ))}
+        </div>
+
+        <div className="sec-row" style={{paddingTop: 'var(--sp-sm)'}}><span className="sec-title">Library</span></div>
         <div className="s-row">
           <div role="button" tabIndex={0} className="s-card" onClick={() => go('s6')} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); go('s6'); } }}>
             <div className="sc-cover scc1">🌟<div className="sc-badge">6 pp</div></div>
@@ -437,18 +445,12 @@ export default function Home() {
             <div className="sc-info"><div className="sc-title">The Last Dragon Keeper</div><div className="sc-meta">Page 7 · Cinematic</div></div>
           </div>
         </div>
-        <div className="sec-row" style={{paddingTop:0}}><span className="sec-title">Browse</span><span className="sec-link">See all →</span></div>
-        <div className="genre-row">
-          {['All', 'Adventure', 'Fantasy', 'Mystery', 'Animals'].map(g => (
-            <div role="button" tabIndex={0} key={g} className={`gpill ${selectedGenre === g ? 'on' : ''}`} onClick={() => setSelectedGenre(g)} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); setSelectedGenre(g); } }}>{g}</div>
-          ))}
-        </div>
+
         <div className="tabbar">
           {[
             { id: 'Home', ico: '🏠' },
             { id: 'Library', ico: '📚' },
             { id: 'Create', ico: '✨', action: () => go('s3') },
-            { id: 'Discover', ico: '🔍' },
             { id: 'Profile', ico: '👤' }
           ].map(t => (
             <div role="button" tabIndex={0} key={t.id} className={`tab ${selectedTab === t.id ? 'on' : ''}`} onClick={() => { setSelectedTab(t.id); if(t.action) t.action(); }} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); setSelectedTab(t.id); if(t.action) t.action(); } }}>

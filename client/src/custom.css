@@ -476,14 +476,14 @@ body{
 .lib-greet{font-size:var(--t-xs);font-weight:600;color:var(--dm)}
 .lib-name{font-family:'Lora',Georgia,serif;font-weight:700;font-size:var(--t-xl);color:var(--ink);margin-top:2px}
 .lib-avatar{width:44px;height:44px;border-radius:22px;background:var(--ink);display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 4px 14px rgba(10,12,30,.2)}
-.new-card{margin:clamp(10px,1.8dvh,16px) var(--sp-md) 0;border-radius:20px;padding:clamp(14px,2.5dvh,20px);background:var(--ink);cursor:pointer;display:flex;align-items:center;gap:14px;box-shadow:0 8px 28px rgba(10,12,30,.24);transition:transform .16s,box-shadow .16s}
+.new-card{margin:clamp(20px,3dvh,28px) var(--sp-md) clamp(16px,2.5dvh,24px);border-radius:20px;padding:clamp(14px,2.5dvh,20px);background:var(--ink);cursor:pointer;display:flex;align-items:center;gap:14px;box-shadow:0 8px 28px rgba(10,12,30,.24);transition:transform .16s,box-shadow .16s}
 .new-card:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(10,12,30,.32)}
 .new-card:active{opacity:.88;transform:none}
 .nc-ico{width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
 .nc-title{font-size:var(--t-lg);font-weight:800;color:white;margin-bottom:2px}
 .nc-sub{font-size:var(--t-xs);color:rgba(255,255,255,.45);font-weight:600}
 .nc-arrow{font-size:18px;color:rgba(255,255,255,.3);margin-left:auto}
-.sec-row{display:flex;align-items:center;justify-content:space-between;padding:clamp(12px,2dvh,18px) var(--sp-md) 8px;flex-shrink:0}
+.sec-row{display:flex;align-items:center;justify-content:space-between;padding:clamp(20px,3dvh,28px) var(--sp-md) 12px;flex-shrink:0}
 .sec-title{font-size:var(--t-lg);font-weight:800;color:var(--ink)}
 .sec-link{font-size:var(--t-xs);font-weight:700;color:var(--dm)}
 .s-row{display:flex;gap:clamp(10px,2vw,14px);overflow-x:auto;padding:0 var(--sp-md) 4px;flex-shrink:0}

@@ -472,11 +472,11 @@ body{
 .steer-mic:hover{transform:scale(1.06)}
 
 /* ─────────────────────────────────────────
-   S7 — LIBRARY
+   S7 — HOME & S9 — LIBRARY
 ───────────────────────────────────────── */
-#s7{background:var(--day);display:flex;flex-direction:column}
+#s7, #s9{background:var(--day);display:flex;flex-direction:column}
 .lib-scroll{flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column;padding-bottom:calc(70px + var(--safe-bot))}
-.lib-top{padding:calc(var(--sp-md) * 3) var(--sp-md) 0;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0}
+.lib-top{padding:calc(var(--sp-md) * 2) var(--sp-md) 0;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0}
 .lib-greet{font-size:var(--t-xs);font-weight:600;color:var(--dm)}
 .lib-name{font-family:'Lora',Georgia,serif;font-weight:700;font-size:var(--t-xl);color:var(--ink);margin-top:2px}
 .lib-avatar{width:44px;height:44px;border-radius:22px;background:var(--ink);display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 4px 14px rgba(10,12,30,.2)}

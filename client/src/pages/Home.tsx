@@ -18,8 +18,8 @@ export default function Home() {
     setTimeout(() => setExitScreen(null), 380);
 
     // Sync tab selection with screen changes
-    if (id === 's1' || id === 's2') setSelectedTab('Home');
-    else if (id === 's7' || id === 's8') setSelectedTab('Library');
+    if (id === 's1' || id === 's2' || id === 's7') setSelectedTab('Home');
+    else if (id === 's9') setSelectedTab('Library');
     else if (['s3', 's4', 's5', 's6'].includes(id)) setSelectedTab('Create');
   };
 
@@ -413,7 +413,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── S7 LIBRARY ── */}
+      {/* ── S7 HOME / BROWSE ── */}
       <div className={getScreenClass('s7')} id="s7">
         <div className="lib-scroll">
           <div className="lib-top">
@@ -426,14 +426,61 @@ export default function Home() {
             <div className="nc-arrow">→</div>
           </div>
           
-          <div className="sec-row"><span className="sec-title">Browse</span><span className="sec-link">See all →</span></div>
+          <div className="sec-row">
+            <span className="sec-title">Browse</span>
+            <span className="sec-link" style={{cursor: 'pointer'}} onClick={() => go('s9')}>See all →</span>
+          </div>
           <div className="genre-row">
             {['All', 'Adventure', 'Fantasy', 'Mystery', 'Animals'].map(g => (
               <div role="button" tabIndex={0} key={g} className={`gpill ${selectedGenre === g ? 'on' : ''}`} onClick={() => setSelectedGenre(g)} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); setSelectedGenre(g); } }}>{g}</div>
             ))}
           </div>
 
-          <div className="sec-row" style={{paddingTop: 'var(--sp-sm)'}}><span className="sec-title">Library</span></div>
+          <div className="sec-row" style={{paddingTop: 'var(--sp-sm)'}}>
+            <span className="sec-title">Library</span>
+          </div>
+          <div className="s-row">
+            <div role="button" tabIndex={0} className="s-card" onClick={() => go('s6')} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); go('s6'); } }}>
+              <div className="sc-cover scc1">🌟<div className="sc-badge">6 pp</div></div>
+              <div className="sc-info"><div className="sc-title">Pip and the Glowing Star</div><div className="sc-meta">Page 3 · Watercolour</div></div>
+            </div>
+            <div className="s-card">
+              <div className="sc-cover scc2">🦋<div className="sc-badge">8 pp</div></div>
+              <div className="sc-info"><div className="sc-title">Luna and the Moongate</div><div className="sc-meta">Finished · Pastel</div></div>
+            </div>
+            <div role="button" tabIndex={0} className="s-card" onClick={() => go('s8')} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); go('s8'); } }}>
+              <div className="sc-cover scc3">🐉<div className="sc-badge">12 pp</div></div>
+              <div className="sc-info"><div className="sc-title">The Last Dragon Keeper</div><div className="sc-meta">Page 7 · Cinematic</div></div>
+            </div>
+            <div className="s-card">
+              <div className="sc-cover scc4">🦊<div className="sc-badge">10 pp</div></div>
+              <div className="sc-info"><div className="sc-title">The Midnight Fox</div><div className="sc-meta">Finished · Ink</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="tabbar">
+          {[
+            { id: 'Home', ico: '🏠', action: () => go('s7') },
+            { id: 'Library', ico: '📚', action: () => go('s9') },
+            { id: 'Create', ico: '✨', action: () => go('s3') },
+            { id: 'Profile', ico: '👤' }
+          ].map(t => (
+            <div role="button" tabIndex={0} key={t.id} className={`tab ${selectedTab === t.id ? 'on' : ''}`} onClick={() => { setSelectedTab(t.id); if(t.action) t.action(); }} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); setSelectedTab(t.id); if(t.action) t.action(); } }}>
+              <div className="tab-ico">{t.ico}</div>
+              <div className="tab-lbl">{t.id}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── S9 FULL LIBRARY ── */}
+      <div className={getScreenClass('s9')} id="s9" style={{background: 'var(--day)'}}>
+        <div className="topbar" style={{paddingBottom: '10px'}}>
+          <div className="top-title" style={{fontSize: 'var(--t-xl)', fontFamily: "'Lora',Georgia,serif"}}>Library</div>
+        </div>
+        
+        <div className="lib-scroll" style={{paddingTop: 0}}>
           <div className="s-row">
             <div role="button" tabIndex={0} className="s-card" onClick={() => go('s6')} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); go('s6'); } }}>
               <div className="sc-cover scc1">🌟<div className="sc-badge">6 pp</div></div>
@@ -459,13 +506,21 @@ export default function Home() {
               <div className="sc-cover scc6">🌲<div className="sc-badge">8 pp</div></div>
               <div className="sc-info"><div className="sc-title">The Whispering Woods</div><div className="sc-meta">Finished · Watercolour</div></div>
             </div>
+            <div className="s-card">
+              <div className="sc-cover" style={{background: 'linear-gradient(135deg, #4b6cb7, #182848)'}}>🐙<div className="sc-badge">24 pp</div></div>
+              <div className="sc-info"><div className="sc-title">Deep Sea Adventure</div><div className="sc-meta">Finished · Watercolour</div></div>
+            </div>
+            <div className="s-card">
+              <div className="sc-cover" style={{background: 'linear-gradient(135deg, #f2709c, #ff9472)'}}>🦄<div className="sc-badge">18 pp</div></div>
+              <div className="sc-info"><div className="sc-title">The Magic Meadow</div><div className="sc-meta">Finished · Pastel</div></div>
+            </div>
           </div>
         </div>
 
         <div className="tabbar">
           {[
-            { id: 'Home', ico: '🏠', action: () => go('s1') },
-            { id: 'Library', ico: '📚', action: () => go('s7') },
+            { id: 'Home', ico: '🏠', action: () => go('s7') },
+            { id: 'Library', ico: '📚', action: () => go('s9') },
             { id: 'Create', ico: '✨', action: () => go('s3') },
             { id: 'Profile', ico: '👤' }
           ].map(t => (

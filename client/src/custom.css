@@ -258,9 +258,9 @@ body{
 .ob-body{flex:1;padding:0 var(--sp-lg);display:flex;flex-direction:column;gap:var(--sp-xs);overflow:hidden;min-height:0;justify-content:flex-start;padding-top:var(--sp-md)}
 .ob-eyebrow{font-size:var(--t-xs);font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--indigo);display:flex;align-items:center;gap:8px}
 .ob-line{flex:1;height:1px;background:rgba(85,97,232,.15)}
-.ob-h1{font-family:'Lora',Georgia,serif;font-size:clamp(28px,7vw,36px);font-weight:700;color:var(--ink);line-height:1.22;margin-bottom:8px}
+.ob-h1{font-family:'Lora',Georgia,serif;font-size:clamp(24px,5.5vw,32px);font-weight:700;color:var(--ink);line-height:1.22;margin-bottom:8px}
 .ob-h1 em{font-style:italic;color:var(--indigo)}
-.ob-p{font-size:clamp(15px,3.8vw,17px);font-weight:500;color:var(--dm);line-height:1.62}
+.ob-p{font-size:clamp(14px,3.5vw,16px);font-weight:500;color:var(--dm);line-height:1.55}
 .ob-pills{display:flex;gap:7px;flex-wrap:wrap}
 .ob-pill{display:flex;align-items:center;gap:6px;background:white;border:1.5px solid var(--db);border-radius:24px;padding:5px 12px;font-size:var(--t-xs);font-weight:700;color:var(--ink);box-shadow:0 2px 8px rgba(10,12,30,.06)}
 .op-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}

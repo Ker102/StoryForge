@@ -236,7 +236,6 @@ export default function Home() {
           <button className="btn-skip-txt" onClick={() => go('s4')}>Skip</button>
         </div>
         <div className="ms-head">
-          <div className="ms-eyebrow">Who's reading?</div>
           <div className="ms-title">Choose your<br/><em>story mode.</em></div>
           <div className="ms-sub">StoryForge adapts vocabulary, themes and pacing to your audience.</div>
         </div>

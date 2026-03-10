@@ -193,7 +193,6 @@ export default function Home() {
         <div className="ob-body" style={{ position: 'relative' }}>
           {/* Step 0 Content */}
           <div style={{ opacity: obStep === 0 ? 1 : 0, transition: 'opacity 0.4s ease', pointerEvents: obStep === 0 ? 'auto' : 'none', position: 'absolute', inset: 'var(--sp-md) var(--sp-lg) 0', display: 'flex', flexDirection: 'column', gap: 'var(--sp-xs)' }}>
-            <div className="ob-eyebrow">Step 1 of 3 <div className="ob-line"></div></div>
             <div className="ob-h1">Speak your idea.<br/><em>Watch it become a book.</em></div>
             <div className="ob-p">One sentence is all it takes. StoryForge plans the full arc, generates illustrations, and narrates — all at once.</div>
             <div className="ob-pills">
@@ -203,7 +202,6 @@ export default function Home() {
 
           {/* Step 1 Content */}
           <div style={{ opacity: obStep === 1 ? 1 : 0, transition: 'opacity 0.4s ease', pointerEvents: obStep === 1 ? 'auto' : 'none', position: 'absolute', inset: 'var(--sp-md) var(--sp-lg) 0', display: 'flex', flexDirection: 'column', gap: 'var(--sp-xs)' }}>
-            <div className="ob-eyebrow">Step 2 of 3 <div className="ob-line"></div></div>
             <div className="ob-h1">Stunning Art.<br/><em>In your chosen style.</em></div>
             <div className="ob-p">From delicate watercolours to vibrant pixel art, every page is beautifully illustrated to match your story's mood.</div>
             <div className="ob-pills">
@@ -213,7 +211,6 @@ export default function Home() {
 
           {/* Step 2 Content */}
           <div style={{ opacity: obStep === 2 ? 1 : 0, transition: 'opacity 0.4s ease', pointerEvents: obStep === 2 ? 'auto' : 'none', position: 'absolute', inset: 'var(--sp-md) var(--sp-lg) 0', display: 'flex', flexDirection: 'column', gap: 'var(--sp-xs)' }}>
-            <div className="ob-eyebrow">Step 3 of 3 <div className="ob-line"></div></div>
             <div className="ob-h1">Sit back.<br/><em>And listen.</em></div>
             <div className="ob-p">Warm, dynamic voices bring your characters to life. Share the final interactive book with family and friends.</div>
             <div className="ob-pills">

@@ -147,7 +147,7 @@ body{
 
 .splash-bottom{
   position:absolute;bottom:0;left:0;right:0;
-  padding:0 var(--sp-lg) calc(var(--sp-xl) + var(--safe-bot));
+  padding:0 var(--sp-lg) calc((var(--sp-xl) * 3) + var(--safe-bot));
   background:linear-gradient(to top,var(--night) 55%,transparent);
   display:flex;flex-direction:column;align-items:center;
 }

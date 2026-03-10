@@ -550,3 +550,31 @@ body{
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
 }
 #root { display: contents; }
+
+/* ─────────────────────────────────────────
+   ACCESSIBILITY & ALIGNMENT
+───────────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+*:focus-visible {
+  outline: 2px solid var(--indigo, #5561e8);
+  outline-offset: 2px;
+}
+.splash-bottom, .ob-body, .ms-head, .speak-main, .export-top {
+  text-align: center;
+}
+.ob-eyebrow, .ob-pills {
+  justify-content: center;
+}
+.ms-list, .cfg-scroll {
+  text-align: left;
+}

@@ -180,7 +180,7 @@ export default function Home() {
       {/* ── S3 MODE SELECT ── */}
       <div className={getScreenClass('s3')} id="s3">
         <div className="topbar">
-          <button className="btn-back" onClick={() => go('s2')}>←</button>
+          <button className="btn-back" aria-label="Go back" onClick={() => go('s2')}>←</button>
           <button className="btn-skip-txt" onClick={() => go('s4')}>Skip</button>
         </div>
         <div className="ms-head">
@@ -195,7 +195,7 @@ export default function Home() {
             { id: 'cr', name: 'Creator', ages: 'Adults & Writers', desc: 'Full creative freedom. Dark themes, open endings.', ico: '✍️', cls: 'mc-cr' },
             { id: 'ed', name: 'Educator', ages: 'Classroom Use', desc: 'Illustrated explainers with narration and learning cues.', ico: '📚', cls: 'mc-ed' },
           ].map(m => (
-            <div key={m.id} className={`mcard ${m.cls} ${selectedMode === m.id ? 'picked' : ''}`} onClick={() => handleModePick(m.id)}>
+            <div role="button" tabIndex={0} key={m.id} className={`mcard ${m.cls} ${selectedMode === m.id ? 'picked' : ''}`} onClick={() => handleModePick(m.id)} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); handleModePick(m.id); } }}>
               <div key={modeKey} className="mcheck">✓</div>
               <div className={`mc-banner mc-banner-${m.id}`}></div>
               <div className="mc-inner">
@@ -217,7 +217,7 @@ export default function Home() {
       {/* ── S4 CONFIGURE ── */}
       <div className={getScreenClass('s4')} id="s4">
         <div className="topbar">
-          <button className="btn-back" onClick={() => go('s3')}>←</button>
+          <button className="btn-back" aria-label="Go back" onClick={() => go('s3')}>←</button>
           <span className="top-title">Story Settings</span>
           <div style={{width:'36px'}}></div>
         </div>
@@ -231,7 +231,7 @@ export default function Home() {
               { id: 'ik', lbl: 'Ink Sketch', img: '✏️', cls: 'st-ik' },
               { id: 'ci', lbl: 'Cinematic', img: '🎬', cls: 'st-ci', style: {color:'#fff', background:'#1a2028'} }
             ].map(s => (
-              <div key={s.id} className={`style-tile ${selectedStyle === s.id ? 'on' : ''}`} onClick={() => setSelectedStyle(s.id)}>
+              <div role="button" tabIndex={0} key={s.id} className={`style-tile ${selectedStyle === s.id ? 'on' : ''}`} onClick={() => setSelectedStyle(s.id)} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); setSelectedStyle(s.id); } }}>
                 <div className={`st-img ${s.cls}`}>{s.img}</div>
                 <div className="st-lbl" style={s.style}>{s.lbl}</div>
               </div>
@@ -241,24 +241,24 @@ export default function Home() {
           <div className="sec-head">Story Length</div>
           <div className="chip-row">
             {['4 pages', '6 pages', '8 pages', '12 pages'].map(c => (
-              <div key={c} className={`chip ${selectedLength === c ? 'on' : ''}`} onClick={() => setSelectedLength(c)}>{c}</div>
+              <div role="button" tabIndex={0} key={c} className={`chip ${selectedLength === c ? 'on' : ''}`} onClick={() => setSelectedLength(c)} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); setSelectedLength(c); } }}>{c}</div>
             ))}
           </div>
 
-          <div className="sec-head">Story Seed <span style={{fontWeight:500, textTransform:'none', letterSpacing:0}}>(optional)</span></div>
-          <input className="cfg-input" defaultValue="A small robot who finds a glowing star in a forest" />
+          <div className="sec-head">Story Seed <span style={{fontWeight:500, textTransform:'none', letterSpacing:0, fontSize:'var(--t-xs)', color:'var(--dm)'}}>(optional)</span></div>
+          <input className="cfg-input" aria-label="Story Seed" defaultValue="A small robot who finds a glowing star in a forest" />
 
           <div className="sec-head">Narrator Voice</div>
           <div className="chip-row">
             {['🧡 Warm', '✨ Playful', '🌿 Calm', '⚡ Dynamic'].map(c => (
-              <div key={c} className={`chip ${selectedVoice === c ? 'on' : ''}`} onClick={() => setSelectedVoice(c)}>{c}</div>
+              <div role="button" tabIndex={0} key={c} className={`chip ${selectedVoice === c ? 'on' : ''}`} onClick={() => setSelectedVoice(c)} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); setSelectedVoice(c); } }}>{c}</div>
             ))}
           </div>
 
           <div className="sec-head">Language</div>
           <div className="chip-row">
             {['🇬🇧 English', '🇫🇷 French', '🇪🇸 Spanish', '🇳🇬 Yoruba'].map(c => (
-              <div key={c} className={`chip ${selectedLang === c ? 'on' : ''}`} onClick={() => setSelectedLang(c)}>{c}</div>
+              <div role="button" tabIndex={0} key={c} className={`chip ${selectedLang === c ? 'on' : ''}`} onClick={() => setSelectedLang(c)} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); setSelectedLang(c); } }}>{c}</div>
             ))}
           </div>
         </div>
@@ -271,7 +271,7 @@ export default function Home() {
       <div className={getScreenClass('s5')} id="s5">
         <div className="speak-top">
           <span className="speak-lbl">Listening…</span>
-          <button className="btn-close" onClick={() => go('s4')}>✕</button>
+          <button className="btn-close" aria-label="Close" onClick={() => go('s4')}>✕</button>
         </div>
         <div className="speak-main">
           <div className="mic-wrap">
@@ -353,8 +353,8 @@ export default function Home() {
           <div className="a-chip a-idle"><div className="a-dot"></div><span className="a-lbl">Pacing</span></div>
         </div>
         <div className="steer-row">
-          <input className="steer-input" placeholder='Say "add a twist"…' />
-          <button className="steer-mic" onClick={() => go('s7')}>🎙️</button>
+          <input className="steer-input" aria-label="Steer the story" placeholder='Say "add a twist"…' />
+          <button className="steer-mic" aria-label="Speak direction" onClick={() => go('s7')}>🎙️</button>
         </div>
       </div>
 
@@ -364,14 +364,14 @@ export default function Home() {
           <div><div className="lib-greet">Good evening,</div><div className="lib-name">Amara 👋</div></div>
           <div className="lib-avatar">🧒</div>
         </div>
-        <div className="new-card" onClick={() => go('s4')}>
+        <div role="button" tabIndex={0} className="new-card" onClick={() => go('s4')} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); go('s4'); } }}>
           <div className="nc-ico">🎙️</div>
           <div><div className="nc-title">New Story</div><div className="nc-sub">Speak a sentence. Get a book.</div></div>
           <div className="nc-arrow">→</div>
         </div>
         <div className="sec-row"><span className="sec-title">Continue Reading</span></div>
         <div className="s-row">
-          <div className="s-card" onClick={() => go('s6')}>
+          <div role="button" tabIndex={0} className="s-card" onClick={() => go('s6')} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); go('s6'); } }}>
             <div className="sc-cover scc1">🌟<div className="sc-badge">6 pp</div></div>
             <div className="sc-info"><div className="sc-title">Pip and the Glowing Star</div><div className="sc-meta">Page 3 · Watercolour</div></div>
           </div>
@@ -379,7 +379,7 @@ export default function Home() {
             <div className="sc-cover scc2">🦋<div className="sc-badge">8 pp</div></div>
             <div className="sc-info"><div className="sc-title">Luna and the Moongate</div><div className="sc-meta">Finished · Pastel</div></div>
           </div>
-          <div className="s-card" onClick={() => go('s8')}>
+          <div role="button" tabIndex={0} className="s-card" onClick={() => go('s8')} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); go('s8'); } }}>
             <div className="sc-cover scc3">🐉<div className="sc-badge">12 pp</div></div>
             <div className="sc-info"><div className="sc-title">The Last Dragon Keeper</div><div className="sc-meta">Page 7 · Cinematic</div></div>
           </div>
@@ -387,7 +387,7 @@ export default function Home() {
         <div className="sec-row" style={{paddingTop:0}}><span className="sec-title">Browse</span><span className="sec-link">See all →</span></div>
         <div className="genre-row">
           {['All', 'Adventure', 'Fantasy', 'Mystery', 'Animals'].map(g => (
-            <div key={g} className={`gpill ${selectedGenre === g ? 'on' : ''}`} onClick={() => setSelectedGenre(g)}>{g}</div>
+            <div role="button" tabIndex={0} key={g} className={`gpill ${selectedGenre === g ? 'on' : ''}`} onClick={() => setSelectedGenre(g)} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); setSelectedGenre(g); } }}>{g}</div>
           ))}
         </div>
         <div className="tabbar">
@@ -398,7 +398,7 @@ export default function Home() {
             { id: 'Discover', ico: '🔍' },
             { id: 'Profile', ico: '👤' }
           ].map(t => (
-            <div key={t.id} className={`tab ${selectedTab === t.id ? 'on' : ''}`} onClick={() => { setSelectedTab(t.id); if(t.action) t.action(); }}>
+            <div role="button" tabIndex={0} key={t.id} className={`tab ${selectedTab === t.id ? 'on' : ''}`} onClick={() => { setSelectedTab(t.id); if(t.action) t.action(); }} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); setSelectedTab(t.id); if(t.action) t.action(); } }}>
               <div className="tab-ico">{t.ico}</div>
               <div className="tab-lbl">{t.id}</div>
             </div>

@@ -102,9 +102,10 @@ body{
   will-change:opacity,transform;
   /* honour notch on edge-to-edge phones */
   padding-top:var(--safe-top);
+  z-index: 1;
 }
-.screen.active{opacity:1;pointer-events:all;transform:translateY(0) scale(1)}
-.screen.exit{opacity:0;transform:translateY(-10px) scale(1.005)}
+.screen.active{opacity:1;pointer-events:auto;transform:translateY(0) scale(1);z-index:2}
+.screen.exit{opacity:0;transform:translateY(-10px) scale(1.005);z-index:1}
 
 /* ─────────────────────────────────────────
    S1 — SPLASH
@@ -150,6 +151,8 @@ body{
   padding:0 var(--sp-lg) calc((var(--sp-xl) * 3) + var(--safe-bot));
   background:linear-gradient(to top,var(--night) 55%,transparent);
   display:flex;flex-direction:column;align-items:center;
+  z-index: 10;
+  pointer-events: auto;
 }
 .splash-logo{
   font-family:'Lora',Georgia,serif;font-size:var(--t-hero);font-weight:700;color:#fff;line-height:1;

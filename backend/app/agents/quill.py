@@ -29,12 +29,40 @@ from app.services.safety import SafetyService
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Shared service instances (created once, reused per-process)
+# Lazy service getters (avoid import-time init when config isn't ready)
 # ---------------------------------------------------------------------------
-_story_writer = StoryWriterService()
-_image_service = ImageService()
-_narration_service = NarrationService()
-_safety = SafetyService()
+_story_writer: StoryWriterService | None = None
+_image_service: ImageService | None = None
+_narration_service: NarrationService | None = None
+_safety: SafetyService | None = None
+
+
+def _get_story_writer() -> StoryWriterService:
+    global _story_writer
+    if _story_writer is None:
+        _story_writer = StoryWriterService()
+    return _story_writer
+
+
+def _get_image_service() -> ImageService:
+    global _image_service
+    if _image_service is None:
+        _image_service = ImageService()
+    return _image_service
+
+
+def _get_narration_service() -> NarrationService:
+    global _narration_service
+    if _narration_service is None:
+        _narration_service = NarrationService()
+    return _narration_service
+
+
+def _get_safety() -> SafetyService:
+    global _safety
+    if _safety is None:
+        _safety = SafetyService()
+    return _safety
 
 
 # ---------------------------------------------------------------------------
@@ -71,31 +99,37 @@ async def generate_story_page(
             )
         )
 
+    story_writer = _get_story_writer()
+    safety = _get_safety()
+
     # Step 1: Generate story text
-    writer_result = await _story_writer.generate_page(
+    writer_result = await story_writer.generate_page(
         story_state=story_state,
         page_number=page_number,
         user_direction=user_direction,
     )
     page_text = writer_result["text"]
 
-    # Safety check — regenerate if unsafe
-    if not _safety.is_text_safe(page_text, story_state.age_setting):
+    # Safety check — regenerate if unsafe, abort if still fails
+    if not safety.is_text_safe(page_text, story_state.age_setting):
         logger.warning("Page text failed safety check, regenerating...")
-        writer_result = await _story_writer.generate_page(
+        writer_result = await story_writer.generate_page(
             story_state=story_state,
             page_number=page_number,
             user_direction=user_direction + " (keep content child-friendly and safe)",
         )
         page_text = writer_result["text"]
+        if not safety.is_text_safe(page_text, story_state.age_setting):
+            logger.error("Page text failed safety check after retry")
+            return {"status": "error", "message": "Unable to generate safe content. Please try again."}
 
     # Step 2: Generate illustration + narration in parallel
     image_base64, narration_base64 = await asyncio.gather(
-        _image_service.generate_illustration(
+        _get_image_service().generate_illustration(
             scene_description=writer_result["scene_description"],
             style=story_state.style.value,
         ),
-        _narration_service.generate_narration(page_text),
+        _get_narration_service().generate_narration(page_text),
         return_exceptions=True,
     )
 
@@ -250,7 +284,7 @@ CURRENT STORY STATE:
 
     return Agent(
         name="quill",
-        model="gemini-live-2.5-flash-preview",
+        model="gemini-2.5-flash",
         instruction=instruction,
         tools=[generate_story_page, finish_story],
     )

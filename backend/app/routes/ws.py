@@ -13,6 +13,7 @@ import json
 import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from google.adk.events import Event, EventActions
 from google.adk.runners import InMemoryRunner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
@@ -46,6 +47,7 @@ async def story_websocket(websocket: WebSocket):
     logger.info("WebSocket client connected")
 
     session_id = None
+    adk_session = None
     send_lock = asyncio.Lock()
 
     async def safe_send(msg: dict) -> None:
@@ -177,8 +179,17 @@ async def story_websocket(websocket: WebSocket):
                                     ),
                                 ).model_dump()
                             )
-                            # Clear so we don't re-send
-                            current_session.state["latest_page"] = None
+                            # Clear via proper ADK state_delta
+                            clear_evt = Event(
+                                invocation_id="clear_latest_page",
+                                author="system",
+                                actions=EventActions(
+                                    state_delta={"latest_page": None}
+                                ),
+                            )
+                            await _session_service.append_event(
+                                current_session, clear_evt
+                            )
 
                         # Check for story completion
                         if current_session.state.get("story_complete"):
@@ -187,6 +198,17 @@ async def story_websocket(websocket: WebSocket):
                                     session_id=session_id,
                                     message="Your story is complete! Download it from the export page.",
                                 ).model_dump()
+                            )
+                            # Clear flag to prevent duplicate messages
+                            done_evt = Event(
+                                invocation_id="clear_story_complete",
+                                author="system",
+                                actions=EventActions(
+                                    state_delta={"story_complete": False}
+                                ),
+                            )
+                            await _session_service.append_event(
+                                current_session, done_evt
                             )
 
                 elif msg_type == WSMessageType.AUDIO_CHUNK:
@@ -242,3 +264,12 @@ async def story_websocket(websocket: WebSocket):
     finally:
         if session_id:
             logger.info("Cleaning up session %s", session_id)
+            if adk_session is not None:
+                try:
+                    await _session_service.delete_session(
+                        app_name="storyforge",
+                        user_id=session_id,
+                        session_id=adk_session.id,
+                    )
+                except Exception as cleanup_err:
+                    logger.warning("Session cleanup failed: %s", cleanup_err)

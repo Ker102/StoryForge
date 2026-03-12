@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { signInWithGoogle, signOut, onAuthStateChanged, type User } from '../lib/firebase';
+import { connectToStory, fetchStories, type StorySession, type PageUpdate } from '../lib/websocket';
 
 const pts = [
   {x:14,y:18},{x:28,y:10},{x:45,y:15},{x:58,y:8},{x:72,y:20},
@@ -97,6 +99,115 @@ export default function Home() {
   const [selectedGenre, setSelectedGenre] = useState('All');
   const [selectedTab, setSelectedTab] = useState('Home');
 
+  // Firebase auth state
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Story session state
+  const [storySession, setStorySession] = useState<StorySession | null>(null);
+  const [currentPage, setCurrentPage] = useState<PageUpdate | null>(null);
+  const [agentText, setAgentText] = useState('');
+  const [statusMsg, setStatusMsg] = useState('');
+  const [storyTitle, setStoryTitle] = useState('Your Story');
+  const seedInputRef = useRef<HTMLInputElement>(null);
+
+  // Library state
+  const [libraryStories, setLibraryStories] = useState<Array<{
+    id: string; title: string; style: string; current_page: number;
+    is_complete: boolean; page_count: number;
+  }>>([]);
+
+  // Auth listener
+  useEffect(() => {
+    const unsub = onAuthStateChanged((u) => {
+      setUser(u);
+      setAuthLoading(false);
+      if (u) setHasOnboarded(true);
+    });
+    return unsub;
+  }, []);
+
+  // Fetch library when user signs in or reaches home
+  const loadLibrary = useCallback(async () => {
+    if (!user) return;
+    const stories = await fetchStories();
+    setLibraryStories(stories);
+  }, [user]);
+
+  useEffect(() => {
+    if (user && (activeScreen === 's7' || activeScreen === 's9')) {
+      loadLibrary();
+    }
+  }, [user, activeScreen, loadLibrary]);
+
+  // Sign-in handler
+  const handleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+      setHasOnboarded(true);
+      go('s7');
+    } catch (e) {
+      console.error('Sign-in failed:', e);
+    }
+  };
+
+  // Map UI style IDs to backend values
+  const styleMap: Record<string, string> = {
+    wc: 'watercolour', dp: 'pastel', px: 'pixel_art', ik: 'ink_sketch', ci: 'cinematic'
+  };
+  const modeMap: Record<string, string> = {
+    ch: 'children_5_8', te: 'teen_13_17', cr: 'adults', ed: 'educator'
+  };
+
+  // Connect to backend and start story
+  const handleForgeStory = async () => {
+    go('s6');
+    setCurrentPage(null);
+    setAgentText('');
+    setStatusMsg('Connecting to Quill...');
+
+    try {
+      const session = await connectToStory(
+        {
+          style: styleMap[selectedStyle] || 'watercolour',
+          age_setting: modeMap[selectedMode] || 'children_5_8',
+          seed: seedInputRef.current?.value || '',
+        },
+        {
+          onSessionReady: (sid) => {
+            setStatusMsg('Quill is ready! Generating your story...');
+            // Send initial prompt to start generation
+            session.sendText(
+              seedInputRef.current?.value ||
+                'Create a wonderful story for me'
+            );
+          },
+          onPageUpdate: (page) => {
+            setCurrentPage(page);
+            setStoryTitle(page.summary || 'Your Story');
+            setStatusMsg('');
+          },
+          onAgentText: (text) => {
+            setAgentText(text);
+          },
+          onStatus: (msg) => {
+            setStatusMsg(msg);
+          },
+          onError: (msg) => {
+            setStatusMsg(`Error: ${msg}`);
+          },
+          onClose: () => {
+            setStatusMsg('Session ended');
+          },
+        }
+      );
+      setStorySession(session);
+    } catch (e) {
+      console.error('Failed to connect:', e);
+      setStatusMsg('Failed to connect to server');
+    }
+  };
+
   // Trigger pop animation for mode checks by unsetting and resetting a key
   const [modeKey, setModeKey] = useState(0);
   const handleModePick = (id: string) => {
@@ -124,8 +235,8 @@ export default function Home() {
         <div className="splash-bottom">
           <div className="splash-logo">Story<em>Forge</em></div>
           <div className="splash-tag">Speak a sentence. Get a book.</div>
-          <button className="btn-gold" onClick={() => go(hasOnboarded ? 's7' : 's2')}>{hasOnboarded ? 'Open Library' : 'Begin Your Story'} <span className="btn-arrow">→</span></button>
-          <div className="splash-link">Already have an account? <a href="#">Sign in</a></div>
+          <button className="btn-gold" onClick={() => { if (user) { go('s7'); } else if (hasOnboarded) { go('s7'); } else { go('s2'); } }}>{user ? 'Open Library' : hasOnboarded ? 'Open Library' : 'Begin Your Story'} <span className="btn-arrow">→</span></button>
+          <div className="splash-link">{user ? <span>Signed in as {user.displayName} · <a href="#" onClick={(e) => { e.preventDefault(); signOut(); }}>Sign out</a></span> : <span>Already have an account? <a href="#" onClick={(e) => { e.preventDefault(); handleSignIn(); }}>Sign in</a></span>}</div>
         </div>
       </div>
 
@@ -301,7 +412,7 @@ export default function Home() {
           </div>
 
           <div className="sec-head">Story Seed <span style={{fontWeight:500, textTransform:'none', letterSpacing:0, fontSize:'var(--t-xs)', color:'var(--dm)'}}>(optional)</span></div>
-          <input className="cfg-input" aria-label="Story Seed" defaultValue="A small robot who finds a glowing star in a forest" />
+          <input className="cfg-input" ref={seedInputRef} aria-label="Story Seed" defaultValue="A small robot who finds a glowing star in a forest" />
 
           <div className="sec-head">Narrator Voice</div>
           <div className="chip-row">
@@ -318,7 +429,7 @@ export default function Home() {
           </div>
         </div>
         <div className="cfg-footer">
-          <button className="btn-full" onClick={() => go('s5')}>🎙️ &nbsp;Speak My Story</button>
+          <button className="btn-full" onClick={handleForgeStory}>🎙️ &nbsp;Forge My Story</button>
         </div>
       </div>
 
@@ -366,49 +477,57 @@ export default function Home() {
       <div className={getScreenClass('s6')} id="s6">
         <div className="gen-top">
           <div style={{flex:1, minWidth:0}}>
-            <div className="gen-story">Pip and the Glowing Star</div>
-            <div className="gen-pinfo">Page 1 of 6 · Watercolour · Children</div>
+            <div className="gen-story">{currentPage ? storyTitle : 'Your Story'}</div>
+            <div className="gen-pinfo">{currentPage ? `Page ${currentPage.page_number}` : statusMsg || 'Connecting...'}</div>
           </div>
           <div className="live-badge"><div className="live-dot"></div>Live</div>
         </div>
         <div className="gen-illus">
-          <div className="gi-layer1"></div>
-          <div className="gi-layer2"></div>
-          <div className="gi-star-halo"></div>
-          <div className="gen-emoji">🤖</div>
-          <div className="gi-shadow"></div>
-          <div className="gi-trees">🌲🌲🌲🌲🌲🌲🌲🌲🌲🌲🌲🌲🌲</div>
-          <div className="shimmer"></div>
-          <div className="gen-illus-tag"><div className="ilt-dot"></div>Generating illustration…</div>
-          <div className="gen-pages">
-            <div className="gp-dot active"></div>
-            <div className="gp-dot"></div><div className="gp-dot"></div>
-            <div className="gp-dot"></div><div className="gp-dot"></div><div className="gp-dot"></div>
-          </div>
+          {currentPage?.image_base64 ? (
+            <img src={`data:image/png;base64,${currentPage.image_base64}`} alt="Story illustration" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'20px'}} />
+          ) : (
+            <>
+              <div className="gi-layer1"></div>
+              <div className="gi-layer2"></div>
+              <div className="gi-star-halo"></div>
+              <div className="gen-emoji">✨</div>
+              <div className="gi-shadow"></div>
+              <div className="shimmer"></div>
+              <div className="gen-illus-tag"><div className="ilt-dot"></div>{statusMsg || 'Generating illustration…'}</div>
+            </>
+          )}
         </div>
-        <div className="audio-bar">
-          <button className="audio-play">▶</button>
-          <div className="audio-track">
-            <div className="audio-bg"><div className="audio-fill"></div></div>
-            <div className="audio-times"><span>0:14</span><span>0:44</span></div>
+        {currentPage?.narration_audio_base64 && (
+          <div className="audio-bar">
+            <button className="audio-play" onClick={() => {
+              const audio = new Audio(`data:audio/mp3;base64,${currentPage.narration_audio_base64}`);
+              audio.play();
+            }}>▶</button>
+            <div className="audio-track">
+              <div className="audio-bg"><div className="audio-fill"></div></div>
+            </div>
+            <span className="audio-voice">{selectedVoice}</span>
           </div>
-          <span className="audio-voice">🧡 Warm</span>
-        </div>
+        )}
         <div className="gen-prose-wrap">
           <div className="gen-prose">
-            <span className="drop-cap">I</span>n a forest where every tree held a secret, there lived a small robot named Pip. Pip was made of copper — and copper things do not like the <span className="hl">dark</span>.<br/><br/>
-            Each night, Pip would count screws until morning. One hundred and seven screws. One hundred and seven chances to pretend the dark wasn't there.
+            {currentPage ? (
+              currentPage.text
+            ) : (
+              <>{agentText || statusMsg || 'Waiting for your story to begin...'}</>
+            )}
           </div>
         </div>
         <div className="agent-strip">
-          <div className="a-chip a-done"><div className="a-dot"></div><span className="a-lbl">Arc planned ✓</span></div>
-          <div className="a-chip a-done"><div className="a-dot"></div><span className="a-lbl">Pip locked ✓</span></div>
-          <div className="a-chip a-active"><div className="a-dot"></div><span className="a-lbl">Tone check</span><div className="a-progress"><div className="a-progress-fill"></div></div></div>
-          <div className="a-chip a-idle"><div className="a-dot"></div><span className="a-lbl">Engagement</span></div>
-          <div className="a-chip a-idle"><div className="a-dot"></div><span className="a-lbl">Pacing</span></div>
+          {agentText && <div className="a-chip a-active"><div className="a-dot"></div><span className="a-lbl">{agentText.slice(0, 40)}…</span></div>}
         </div>
         <div className="steer-row">
-          <input className="steer-input" aria-label="Steer the story" placeholder='Say "add a twist"…' />
+          <input className="steer-input" aria-label="Steer the story" placeholder='Say "add a twist"…' onKeyDown={(e) => {
+            if (e.key === 'Enter' && storySession) {
+              storySession.sendText((e.target as HTMLInputElement).value);
+              (e.target as HTMLInputElement).value = '';
+            }
+          }} />
           <button className="steer-mic" aria-label="Speak direction" onClick={() => go('s7')}>🎙️</button>
         </div>
       </div>
@@ -417,8 +536,8 @@ export default function Home() {
       <div className={getScreenClass('s7')} id="s7">
         <div className="lib-scroll">
           <div className="lib-top">
-            <div><div className="lib-greet">Good evening,</div><div className="lib-name">Amara 👋</div></div>
-            <div className="lib-avatar">🧒</div>
+            <div><div className="lib-greet">Welcome back,</div><div className="lib-name">{user?.displayName?.split(' ')[0] || 'Storyteller'} 👋</div></div>
+            <div className="lib-avatar">{user?.photoURL ? <img src={user.photoURL} alt="" style={{width:'100%',height:'100%',borderRadius:'50%'}} /> : '🧒'}</div>
           </div>
           <div role="button" tabIndex={0} className="new-card" onClick={() => go('s3')} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); go('s3'); } }}>
             <div className="nc-ico">🎙️</div>
@@ -440,22 +559,25 @@ export default function Home() {
             <span className="sec-title">Library</span>
           </div>
           <div className="s-row">
-            <div role="button" tabIndex={0} className="s-card" onClick={() => go('s6')} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); go('s6'); } }}>
-              <div className="sc-cover scc1">🌟<div className="sc-badge">6 pp</div></div>
-              <div className="sc-info"><div className="sc-title">Pip and the Glowing Star</div><div className="sc-meta">Page 3 · Watercolour</div></div>
-            </div>
-            <div className="s-card">
-              <div className="sc-cover scc2">🦋<div className="sc-badge">8 pp</div></div>
-              <div className="sc-info"><div className="sc-title">Luna and the Moongate</div><div className="sc-meta">Finished · Pastel</div></div>
-            </div>
-            <div role="button" tabIndex={0} className="s-card" onClick={() => go('s8')} onKeyDown={(e) => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); go('s8'); } }}>
-              <div className="sc-cover scc3">🐉<div className="sc-badge">12 pp</div></div>
-              <div className="sc-info"><div className="sc-title">The Last Dragon Keeper</div><div className="sc-meta">Page 7 · Cinematic</div></div>
-            </div>
-            <div className="s-card">
-              <div className="sc-cover scc4">🦊<div className="sc-badge">10 pp</div></div>
-              <div className="sc-info"><div className="sc-title">The Midnight Fox</div><div className="sc-meta">Finished · Ink</div></div>
-            </div>
+            {libraryStories.length > 0 ? (
+              libraryStories.slice(0, 4).map((story, i) => (
+                <div role="button" tabIndex={0} key={story.id} className="s-card" onClick={() => go('s6')}>
+                  <div className={`sc-cover scc${(i % 6) + 1}`}>{'📖'}<div className="sc-badge">{story.page_count} pp</div></div>
+                  <div className="sc-info"><div className="sc-title">{story.title}</div><div className="sc-meta">{story.is_complete ? 'Finished' : `Page ${story.current_page}`} · {story.style}</div></div>
+                </div>
+              ))
+            ) : (
+              <>
+                <div role="button" tabIndex={0} className="s-card" onClick={() => go('s6')}>
+                  <div className="sc-cover scc1">🌟<div className="sc-badge">6 pp</div></div>
+                  <div className="sc-info"><div className="sc-title">Pip and the Glowing Star</div><div className="sc-meta">Page 3 · Watercolour</div></div>
+                </div>
+                <div className="s-card">
+                  <div className="sc-cover scc2">🦋<div className="sc-badge">8 pp</div></div>
+                  <div className="sc-info"><div className="sc-title">Luna and the Moongate</div><div className="sc-meta">Finished · Pastel</div></div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

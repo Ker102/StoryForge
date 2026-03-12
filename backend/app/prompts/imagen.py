@@ -39,13 +39,9 @@ STYLE_NEGATIVE_PROMPTS: dict[str, str] = {
 
 # Fallback for unknown styles
 DEFAULT_PROMPT = (
-    "children's book illustration, colorful, warm, friendly, "
-    "safe for children, storybook art"
+    "children's book illustration, colorful, warm, friendly, safe for children, storybook art"
 )
-DEFAULT_NEGATIVE = (
-    "photorealistic, scary, violent, dark, inappropriate, "
-    "adult content, horror"
-)
+DEFAULT_NEGATIVE = "photorealistic, scary, violent, dark, inappropriate, adult content, horror"
 
 
 def build_imagen_prompt(scene_description: str, style: str) -> str:

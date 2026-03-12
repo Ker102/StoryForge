@@ -58,9 +58,7 @@ class ImageService:
             logger.error("Gemini image generation also failed: %s", e)
             return None
 
-    async def _generate_with_imagen(
-        self, prompt: str, negative_prompt: str
-    ) -> str:
+    async def _generate_with_imagen(self, prompt: str, negative_prompt: str) -> str:
         """Generate using Imagen API."""
         response = await self.client.aio.models.generate_images(
             model=self.image_model,

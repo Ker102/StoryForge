@@ -1,11 +1,10 @@
 # Ruff — fast Python linter and formatter
 # https://docs.astral.sh/ruff/
 
-[tool.ruff]
 target-version = "py311"
 line-length = 100
 
-[tool.ruff.lint]
+[lint]
 select = [
     "E",     # pycodestyle errors
     "W",     # pycodestyle warnings
@@ -25,9 +24,9 @@ ignore = [
     "E501",  # line too long — handled by formatter
 ]
 
-[tool.ruff.lint.per-file-ignores]
+[lint.per-file-ignores]
 "tests/**" = ["S101", "S106"]  # allow assert and hardcoded passwords in tests
 
-[tool.ruff.format]
+[format]
 quote-style = "double"
 indent-style = "space"

@@ -34,9 +34,7 @@ async def verify_firebase_token(token: str | None) -> dict | None:
 
     try:
         loop = asyncio.get_running_loop()
-        decoded = await loop.run_in_executor(
-            None, partial(verify_id_token, token)
-        )
+        decoded = await loop.run_in_executor(None, partial(verify_id_token, token))
         logger.info(
             "Authenticated user: uid=%s",
             decoded.get("uid"),

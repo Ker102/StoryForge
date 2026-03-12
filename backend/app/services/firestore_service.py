@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.models.story import StoryState
@@ -20,23 +20,27 @@ def _story_to_doc(story_state: StoryState) -> dict[str, Any]:
     """Convert StoryState to a Firestore-safe dict."""
     pages = []
     for page in story_state.pages:
-        pages.append({
-            "number": page.number,
-            "text": page.text,
-            "summary": page.summary,
-            "scene_description": page.scene_description,
-            "image_url": page.image_url if hasattr(page, "image_url") else None,
-            "narration_url": page.narration_url if hasattr(page, "narration_url") else None,
-        })
+        pages.append(
+            {
+                "number": page.number,
+                "text": page.text,
+                "summary": page.summary,
+                "scene_description": page.scene_description,
+                "image_url": page.image_url if hasattr(page, "image_url") else None,
+                "narration_url": page.narration_url if hasattr(page, "narration_url") else None,
+            }
+        )
 
     characters = []
     for char in story_state.characters:
-        characters.append({
-            "name": char.name,
-            "traits": char.traits,
-            "visual_description": char.visual_description,
-            "first_appearance_page": char.first_appearance_page,
-        })
+        characters.append(
+            {
+                "name": char.name,
+                "traits": char.traits,
+                "visual_description": char.visual_description,
+                "first_appearance_page": char.first_appearance_page,
+            }
+        )
 
     return {
         "session_id": story_state.session_id,
@@ -49,7 +53,7 @@ def _story_to_doc(story_state: StoryState) -> dict[str, Any]:
         "pages": pages,
         "characters": characters,
         "world_rules": story_state.world_rules,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -68,9 +72,7 @@ async def save_story(user_id: str, story_state: StoryState) -> None:
             .collection("stories")
             .document(story_state.session_id)
         )
-        await asyncio.to_thread(
-            doc_ref.set, _story_to_doc(story_state), merge=True
-        )
+        await asyncio.to_thread(doc_ref.set, _story_to_doc(story_state), merge=True)
         logger.info(
             "Saved story %s for user %s",
             story_state.session_id,
@@ -103,15 +105,17 @@ async def list_stories(user_id: str) -> list[dict[str, Any]]:
         results = []
         for doc in docs:
             data = doc.to_dict()
-            results.append({
-                "id": doc.id,
-                "title": data.get("title", "Untitled Story"),
-                "style": data.get("style", "watercolour"),
-                "current_page": data.get("current_page", 0),
-                "is_complete": data.get("is_complete", False),
-                "page_count": len(data.get("pages", [])),
-                "updated_at": data.get("updated_at"),
-            })
+            results.append(
+                {
+                    "id": doc.id,
+                    "title": data.get("title", "Untitled Story"),
+                    "style": data.get("style", "watercolour"),
+                    "current_page": data.get("current_page", 0),
+                    "is_complete": data.get("is_complete", False),
+                    "page_count": len(data.get("pages", [])),
+                    "updated_at": data.get("updated_at"),
+                }
+            )
         return results
     except FileNotFoundError:
         logger.warning("Firebase not configured — returning empty library")
@@ -134,10 +138,7 @@ async def load_story(user_id: str, session_id: str) -> dict[str, Any] | None:
     try:
         db = get_firestore_client()
         doc_ref = (
-            db.collection("users")
-            .document(user_id)
-            .collection("stories")
-            .document(session_id)
+            db.collection("users").document(user_id).collection("stories").document(session_id)
         )
         doc = await asyncio.to_thread(doc_ref.get)
         if doc.exists:
@@ -164,10 +165,7 @@ async def delete_story(user_id: str, session_id: str) -> bool:
     try:
         db = get_firestore_client()
         doc_ref = (
-            db.collection("users")
-            .document(user_id)
-            .collection("stories")
-            .document(session_id)
+            db.collection("users").document(user_id).collection("stories").document(session_id)
         )
         await asyncio.to_thread(doc_ref.delete)
         logger.info("Deleted story %s for user %s", session_id, user_id)

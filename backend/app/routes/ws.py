@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
+import contextlib
 import json
 import logging
 
@@ -153,9 +154,7 @@ async def story_websocket(websocket: WebSocket):
                     async for event in runner.run_async(
                         user_id=session_id,
                         session_id=adk_session.id,
-                        new_message=types.UserContent(
-                            parts=[types.Part(text=user_text)]
-                        ),
+                        new_message=types.UserContent(parts=[types.Part(text=user_text)]),
                     ):
                         # Forward agent text responses
                         if event.content and event.content.parts:
@@ -192,23 +191,15 @@ async def story_websocket(websocket: WebSocket):
                             clear_evt = Event(
                                 invocation_id="clear_latest_page",
                                 author="system",
-                                actions=EventActions(
-                                    state_delta={"latest_page": None}
-                                ),
+                                actions=EventActions(state_delta={"latest_page": None}),
                             )
-                            await _session_service.append_event(
-                                current_session, clear_evt
-                            )
+                            await _session_service.append_event(current_session, clear_evt)
 
                             # Persist to Firestore (if authenticated)
                             if user_id:
-                                story_state_obj = current_session.state.get(
-                                    "story_state"
-                                )
+                                story_state_obj = current_session.state.get("story_state")
                                 if story_state_obj:
-                                    await firestore_service.save_story(
-                                        user_id, story_state_obj
-                                    )
+                                    await firestore_service.save_story(user_id, story_state_obj)
 
                         # Check for story completion
                         if current_session.state.get("story_complete"):
@@ -222,13 +213,9 @@ async def story_websocket(websocket: WebSocket):
                             done_evt = Event(
                                 invocation_id="clear_story_complete",
                                 author="system",
-                                actions=EventActions(
-                                    state_delta={"story_complete": False}
-                                ),
+                                actions=EventActions(state_delta={"story_complete": False}),
                             )
-                            await _session_service.append_event(
-                                current_session, done_evt
-                            )
+                            await _session_service.append_event(current_session, done_evt)
 
                 elif msg_type == WSMessageType.AUDIO_CHUNK:
                     # Audio input — decode and forward to agent
@@ -261,8 +248,7 @@ async def story_websocket(websocket: WebSocket):
             elif "bytes" in message:
                 # Raw binary audio — log for now
                 logger.debug(
-                    "Received raw audio (%d bytes) — "
-                    "ADK run_live integration planned",
+                    "Received raw audio (%d bytes) — ADK run_live integration planned",
                     len(message["bytes"]),
                 )
 
@@ -270,7 +256,7 @@ async def story_websocket(websocket: WebSocket):
         logger.info("WebSocket client disconnected (session=%s)", session_id)
     except Exception as e:
         logger.error("WebSocket error: %s", e, exc_info=True)
-        try:
+        with contextlib.suppress(Exception):
             await safe_send(
                 StatusMessage(
                     type=WSMessageType.ERROR,
@@ -278,8 +264,6 @@ async def story_websocket(websocket: WebSocket):
                     message="Internal server error",
                 ).model_dump()
             )
-        except Exception:
-            pass
     finally:
         if session_id:
             logger.info("Cleaning up session %s", session_id)

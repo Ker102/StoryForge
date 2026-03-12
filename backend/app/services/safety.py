@@ -11,14 +11,31 @@ logger = logging.getLogger(__name__)
 
 # Words/themes that should never appear in children's content
 BLOCKED_THEMES = [
-    "violence", "blood", "death", "kill", "murder", "weapon",
-    "sexual", "drugs", "alcohol", "horror", "gore", "torture",
-    "abuse", "suicide", "self-harm",
+    "violence",
+    "blood",
+    "death",
+    "kill",
+    "murder",
+    "weapon",
+    "sexual",
+    "drugs",
+    "alcohol",
+    "horror",
+    "gore",
+    "torture",
+    "abuse",
+    "suicide",
+    "self-harm",
 ]
 
 # Additional words allowed for teen content but not children
 CHILDREN_BLOCKED = [
-    "war", "battle", "fight", "scary", "nightmare", "demon",
+    "war",
+    "battle",
+    "fight",
+    "scary",
+    "nightmare",
+    "demon",
 ]
 
 
@@ -39,17 +56,15 @@ class SafetyService:
 
         # Check universal blocked themes (word-boundary match)
         for theme in BLOCKED_THEMES:
-            if re.search(r'\b' + re.escape(theme) + r'\b', text_lower):
+            if re.search(r"\b" + re.escape(theme) + r"\b", text_lower):
                 logger.warning("Blocked theme found in text: %s", theme)
                 return False
 
         # Additional restrictions for younger children
         if age_setting == AgeSetting.CHILDREN_5_8:
             for word in CHILDREN_BLOCKED:
-                if re.search(r'\b' + re.escape(word) + r'\b', text_lower):
-                    logger.warning(
-                        "Children-blocked word found: %s", word
-                    )
+                if re.search(r"\b" + re.escape(word) + r"\b", text_lower):
+                    logger.warning("Children-blocked word found: %s", word)
                     return False
 
         return True

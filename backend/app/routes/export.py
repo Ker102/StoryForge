@@ -45,12 +45,10 @@ async def export_pdf(session_id: str) -> Response:
         pdf_bytes = await run_in_threadpool(export_service.generate_pdf, state)
     except Exception:
         logger.exception("PDF generation failed for session %s", session_id[:8])
-        raise HTTPException(status_code=500, detail="PDF generation failed")
+        raise HTTPException(status_code=500, detail="PDF generation failed") from None
 
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="storyforge-{session_id[:8]}.pdf"'
-        },
+        headers={"Content-Disposition": f'attachment; filename="storyforge-{session_id[:8]}.pdf"'},
     )

@@ -87,9 +87,7 @@ async def _upload_file(
     try:
         bucket = await asyncio.to_thread(get_storage_bucket)
         blob = bucket.blob(path)
-        await asyncio.to_thread(
-            blob.upload_from_string, data, content_type=content_type
-        )
+        await asyncio.to_thread(blob.upload_from_string, data, content_type=content_type)
 
         # Generate signed URL valid for 7 days
         url = await asyncio.to_thread(

@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Callable, Awaitable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from app.models.story import (
     Character,
@@ -21,10 +22,10 @@ from app.models.story import (
     Page,
     StoryState,
 )
-from app.services.story_writer import StoryWriterService
 from app.services.image_service import ImageService
 from app.services.narration import NarrationService
 from app.services.safety import SafetyService
+from app.services.story_writer import StoryWriterService
 
 logger = logging.getLogger(__name__)
 
@@ -127,9 +128,7 @@ class Orchestrator:
                 style=story_state.style.value,
             )
         )
-        narration_task = asyncio.create_task(
-            self.narration_service.generate_narration(page_text)
-        )
+        narration_task = asyncio.create_task(self.narration_service.generate_narration(page_text))
 
         image_base64, narration_base64 = await asyncio.gather(
             illustration_task,
@@ -195,7 +194,7 @@ class Orchestrator:
         on_page_ready: Callable[[Page], Awaitable[None]],
     ) -> dict[str, Any]:
         """Generate the final page and mark the story as complete."""
-        result = await self._generate_page(
+        await self._generate_page(
             story_state=story_state,
             page_number=story_state.current_page + 1,
             user_direction=f"This is the FINAL page. Wrap up the story: {ending_direction}",

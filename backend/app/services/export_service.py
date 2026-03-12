@@ -7,17 +7,19 @@ import io
 import logging
 import xml.sax.saxutils
 
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import inch
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import (
-    SimpleDocTemplate,
-    Paragraph,
-    Spacer,
-    Image as RLImage,
-    PageBreak,
-)
 from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import (
+    Image as RLImage,
+)
+from reportlab.platypus import (
+    PageBreak,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+)
 
 from app.models.story import StoryState
 
@@ -79,7 +81,9 @@ class ExportService:
         story_elements.append(
             Paragraph(
                 f"A StoryForge Book • {story_state.age_profile['label']}",
-                ParagraphStyle("subtitle", parent=styles["Normal"], alignment=TA_CENTER, fontSize=12),
+                ParagraphStyle(
+                    "subtitle", parent=styles["Normal"], alignment=TA_CENTER, fontSize=12
+                ),
             )
         )
 
@@ -106,9 +110,7 @@ class ExportService:
             story_elements.append(Spacer(1, 0.3 * inch))
 
             # Page number
-            story_elements.append(
-                Paragraph(f"— {page.number} —", page_num_style)
-            )
+            story_elements.append(Paragraph(f"— {page.number} —", page_num_style))
             story_elements.append(PageBreak())
 
         # --- Build PDF ---

@@ -19,7 +19,7 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
 from app.agents.quill import build_quill_agent
-from app.middleware.auth import verify_ws_token
+from app.middleware.auth import verify_firebase_token
 from app.models.session import (
     AgentTextMessage,
     PageUpdateMessage,
@@ -92,7 +92,7 @@ async def story_websocket(websocket: WebSocket):
 
         # Verify auth token (optional — anonymous sessions allowed)
         auth_token = init_data.get("token")
-        user_info = await verify_ws_token(auth_token)
+        user_info = await verify_firebase_token(auth_token)
         if user_info:
             user_id = user_info["uid"]
 

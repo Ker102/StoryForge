@@ -153,7 +153,7 @@ export default function Home() {
 
   // Map UI style IDs to backend values
   const styleMap: Record<string, string> = {
-    wc: 'watercolour', dp: 'pastel', px: 'pixel_art', ik: 'ink_sketch', ci: 'cinematic'
+    wc: 'watercolour', dp: 'dreamy_pastel', px: 'pixel_art', ik: 'ink_sketch', ci: 'cinematic'
   };
   const modeMap: Record<string, string> = {
     ch: 'children_5_8', te: 'teen_13_17', cr: 'adults', ed: 'educator'
@@ -561,17 +561,17 @@ export default function Home() {
           <div className="s-row">
             {libraryStories.length > 0 ? (
               libraryStories.slice(0, 4).map((story, i) => (
-                <div role="button" tabIndex={0} key={story.id} className="s-card" onClick={() => go('s6')}>
+                <button key={story.id} className="s-card" onClick={() => go('s6')} style={{all:'unset',cursor:'pointer',display:'flex',flexDirection:'column'}}>
                   <div className={`sc-cover scc${(i % 6) + 1}`}>{'📖'}<div className="sc-badge">{story.page_count} pp</div></div>
                   <div className="sc-info"><div className="sc-title">{story.title}</div><div className="sc-meta">{story.is_complete ? 'Finished' : `Page ${story.current_page}`} · {story.style}</div></div>
-                </div>
+                </button>
               ))
             ) : (
               <>
-                <div role="button" tabIndex={0} className="s-card" onClick={() => go('s6')}>
+                <button className="s-card" onClick={() => go('s6')} style={{all:'unset',cursor:'pointer',display:'flex',flexDirection:'column'}}>
                   <div className="sc-cover scc1">🌟<div className="sc-badge">6 pp</div></div>
                   <div className="sc-info"><div className="sc-title">Pip and the Glowing Star</div><div className="sc-meta">Page 3 · Watercolour</div></div>
-                </div>
+                </button>
                 <div className="s-card">
                   <div className="sc-cover scc2">🦋<div className="sc-badge">8 pp</div></div>
                   <div className="sc-info"><div className="sc-title">Luna and the Moongate</div><div className="sc-meta">Finished · Pastel</div></div>

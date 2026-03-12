@@ -5,6 +5,7 @@ Stores stories in: users/{uid}/stories/{session_id}
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -67,7 +68,9 @@ async def save_story(user_id: str, story_state: StoryState) -> None:
             .collection("stories")
             .document(story_state.session_id)
         )
-        doc_ref.set(_story_to_doc(story_state), merge=True)
+        await asyncio.to_thread(
+            doc_ref.set, _story_to_doc(story_state), merge=True
+        )
         logger.info(
             "Saved story %s for user %s",
             story_state.session_id,
@@ -96,7 +99,7 @@ async def list_stories(user_id: str) -> list[dict[str, Any]]:
             .collection("stories")
             .order_by("updated_at", direction="DESCENDING")
         )
-        docs = stories_ref.stream()
+        docs = await asyncio.to_thread(lambda: list(stories_ref.stream()))
         results = []
         for doc in docs:
             data = doc.to_dict()
@@ -136,7 +139,7 @@ async def load_story(user_id: str, session_id: str) -> dict[str, Any] | None:
             .collection("stories")
             .document(session_id)
         )
-        doc = doc_ref.get()
+        doc = await asyncio.to_thread(doc_ref.get)
         if doc.exists:
             return doc.to_dict()
         return None
@@ -166,7 +169,7 @@ async def delete_story(user_id: str, session_id: str) -> bool:
             .collection("stories")
             .document(session_id)
         )
-        doc_ref.delete()
+        await asyncio.to_thread(doc_ref.delete)
         logger.info("Deleted story %s for user %s", session_id, user_id)
         return True
     except Exception as e:

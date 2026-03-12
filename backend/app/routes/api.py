@@ -9,7 +9,7 @@ import logging
 
 from fastapi import APIRouter, Header, HTTPException
 
-from app.middleware.auth import verify_ws_token
+from app.middleware.auth import verify_firebase_token
 from app.services import firestore_service
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ async def _get_user_id(authorization: str | None = Header(None)) -> str:
         raise HTTPException(status_code=401, detail="Missing or invalid authorization")
 
     token = authorization.removeprefix("Bearer ").strip()
-    user = await verify_ws_token(token)
+    user = await verify_firebase_token(token)
     if not user or "uid" not in user:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
@@ -54,7 +54,11 @@ async def get_story(story_id: str, authorization: str | None = Header(None)):
 async def delete_story(story_id: str, authorization: str | None = Header(None)):
     """Delete a story by ID."""
     user_id = await _get_user_id(authorization)
+    # Verify story exists first
+    story = await firestore_service.load_story(user_id, story_id)
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
     success = await firestore_service.delete_story(user_id, story_id)
     if not success:
-        raise HTTPException(status_code=500, detail="Failed to delete story")
+        raise HTTPException(status_code=500, detail="Internal error deleting story")
     return {"status": "deleted", "id": story_id}

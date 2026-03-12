@@ -26,7 +26,6 @@ Firebase integration + frontend wiring (feature/firebase branch)
 - [x] Frontend: Firebase SDK (Google Sign-In) + WebSocket client
 
 ## Next Steps
-- [ ] Wire Home.tsx screens to real backend (sign-in, story creation, library)
-- [ ] Delete Replit Express scaffold (server/)
+
 - [ ] Add GOOGLE_API_KEY to .env and run integration tests
 - [ ] Wire audio bidi-streaming via ADK run_live()

@@ -23,12 +23,16 @@ class VisualStyle(str, Enum):
     WATERCOLOUR = "watercolour"
     DREAMY_PASTEL = "dreamy_pastel"
     PIXEL_ART = "pixel_art"
+    INK_SKETCH = "ink_sketch"
+    CINEMATIC = "cinematic"
 
 
 class AgeSetting(str, Enum):
     """Age-calibrated story settings."""
     CHILDREN_5_8 = "children_5_8"
     TEEN_13_17 = "teen_13_17"
+    ADULTS = "adults"
+    EDUCATOR = "educator"
 
 
 class DirectionType(str, Enum):

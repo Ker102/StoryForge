@@ -6,6 +6,7 @@ Provides lazy-initialized access to Firebase Auth, Firestore, and Storage.
 from __future__ import annotations
 
 import logging
+import threading
 from pathlib import Path
 
 import firebase_admin
@@ -16,6 +17,7 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 _app: firebase_admin.App | None = None
+_app_lock = threading.Lock()
 
 
 def _get_app() -> firebase_admin.App:
@@ -24,26 +26,30 @@ def _get_app() -> firebase_admin.App:
     if _app is not None:
         return _app
 
-    settings = get_settings()
-    cred_path = Path(settings.firebase_service_account_path)
+    with _app_lock:
+        # Double-check after acquiring lock
+        if _app is not None:
+            return _app
 
-    if not cred_path.exists():
-        logger.warning(
-            "Firebase service account key not found at %s — "
-            "Firebase features will be disabled.",
-            cred_path,
+        settings = get_settings()
+        cred_path = Path(settings.firebase_service_account_path)
+
+        if not cred_path.exists():
+            logger.error(
+                "Firebase service account key not found at %s",
+                cred_path,
+            )
+            raise FileNotFoundError(f"Service account key not found: {cred_path}")
+
+        cred = credentials.Certificate(str(cred_path))
+        _app = firebase_admin.initialize_app(
+            cred,
+            {
+                "storageBucket": f"{settings.firebase_project_id}.firebasestorage.app",
+            },
         )
-        raise FileNotFoundError(f"Service account key not found: {cred_path}")
-
-    cred = credentials.Certificate(str(cred_path))
-    _app = firebase_admin.initialize_app(
-        cred,
-        {
-            "storageBucket": f"{settings.firebase_project_id}.firebasestorage.app",
-        },
-    )
-    logger.info("Firebase Admin SDK initialized (project=%s)", settings.firebase_project_id)
-    return _app
+        logger.info("Firebase Admin SDK initialized (project=%s)", settings.firebase_project_id)
+        return _app
 
 
 def verify_id_token(id_token: str) -> dict:

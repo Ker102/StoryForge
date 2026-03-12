@@ -5,6 +5,7 @@ Stores files at: stories/{session_id}/page_{n}/image.png etc.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 
@@ -84,12 +85,15 @@ async def _upload_file(
         Signed URL valid for 7 days, or None on failure.
     """
     try:
-        bucket = get_storage_bucket()
+        bucket = await asyncio.to_thread(get_storage_bucket)
         blob = bucket.blob(path)
-        blob.upload_from_string(data, content_type=content_type)
+        await asyncio.to_thread(
+            blob.upload_from_string, data, content_type=content_type
+        )
 
         # Generate signed URL valid for 7 days
-        url = blob.generate_signed_url(
+        url = await asyncio.to_thread(
+            blob.generate_signed_url,
             version="v4",
             expiration=timedelta(days=7),
             method="GET",

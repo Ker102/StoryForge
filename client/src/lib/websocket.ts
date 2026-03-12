@@ -5,9 +5,13 @@
 
 import { getIdToken } from "./firebase";
 
-// Backend WebSocket URL — relative in production, configurable for dev
+// Derive protocol from current page (ws:// for http, wss:// for https)
+const wsScheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+const httpScheme = window.location.protocol === "https:" ? "https:" : "http:";
+
 const WS_BASE =
-  import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:8000`;
+  import.meta.env.VITE_WS_URL ||
+  `${wsScheme}//${window.location.hostname}:8000`;
 
 export interface StoryConfig {
   style: string;
@@ -48,6 +52,7 @@ export async function connectToStory(
   handlers: MessageHandler
 ): Promise<StorySession> {
   const token = await getIdToken();
+  let resolved = false;
 
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(`${WS_BASE}/ws/story`);
@@ -87,6 +92,7 @@ export async function connectToStory(
           case "session_ready":
             session.sessionId = data.session_id;
             handlers.onSessionReady?.(data.session_id);
+            resolved = true;
             resolve(session);
             break;
 
@@ -110,6 +116,11 @@ export async function connectToStory(
 
           case "error":
             handlers.onError?.(data.message);
+            // Reject promise if session hasn't started yet
+            if (!resolved) {
+              resolved = true;
+              reject(new Error(data.message || "Server error"));
+            }
             break;
         }
       } catch (e) {
@@ -120,11 +131,19 @@ export async function connectToStory(
     ws.onerror = (event) => {
       console.error("WebSocket error:", event);
       handlers.onError?.("Connection error");
-      reject(new Error("WebSocket connection failed"));
+      if (!resolved) {
+        resolved = true;
+        reject(new Error("WebSocket connection failed"));
+      }
     };
 
     ws.onclose = () => {
       handlers.onClose?.();
+      // Reject if closed before session_ready
+      if (!resolved) {
+        resolved = true;
+        reject(new Error("Connection closed before session started"));
+      }
     };
   });
 }
@@ -147,7 +166,8 @@ export async function fetchStories(): Promise<
   if (!token) return [];
 
   const API_BASE =
-    import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
+    import.meta.env.VITE_API_URL ||
+    `${httpScheme}//${window.location.hostname}:8000`;
 
   const res = await fetch(`${API_BASE}/api/stories`, {
     headers: { Authorization: `Bearer ${token}` },

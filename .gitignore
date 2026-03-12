@@ -19,6 +19,14 @@ env/
 
 # Environment variables
 .env
+.env.*
+
+# Firebase / GCP credentials
+serviceAccountKey.json
+**/serviceAccountKey.json
+firebase-debug.log
+.firebaserc
+firebase.json
 
 # IDE
 .vscode/

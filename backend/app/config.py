@@ -26,7 +26,7 @@ class Settings(BaseSettings):
         return v
 
     # Model configuration
-    live_model: str = "gemini-live-2.5-flash-preview"
+    live_model: str = "gemini-2.5-flash"
     writer_model: str = "gemini-3-flash-preview"
     image_model: str = "imagen-4.0-generate-001"
     fallback_image_model: str = "gemini-2.5-flash-image"
@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # Defaults
     default_age_setting: str = "children_5_8"
     default_style: str = "watercolour"
+
+    # Firebase
+    firebase_service_account_path: str = "serviceAccountKey.json"
+    firebase_project_id: str = ""
 
     # Server
     host: str = "0.0.0.0"

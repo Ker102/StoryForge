@@ -7,32 +7,38 @@ The StoryState is the single source of truth for the entire story session.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Optional
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
 
-class VisualStyle(str, Enum):
+
+class VisualStyle(StrEnum):
     """Available illustration styles."""
+
     WATERCOLOUR = "watercolour"
     DREAMY_PASTEL = "dreamy_pastel"
     PIXEL_ART = "pixel_art"
+    INK_SKETCH = "ink_sketch"
+    CINEMATIC = "cinematic"
 
 
-class AgeSetting(str, Enum):
+class AgeSetting(StrEnum):
     """Age-calibrated story settings."""
+
     CHILDREN_5_8 = "children_5_8"
     TEEN_13_17 = "teen_13_17"
+    ADULTS = "adults"
+    EDUCATOR = "educator"
 
 
-class DirectionType(str, Enum):
+class DirectionType(StrEnum):
     """Type of user creative direction."""
+
     SEED = "seed"
     STEERING = "steering"
     ENDING = "ending"
@@ -42,8 +48,10 @@ class DirectionType(str, Enum):
 # Sub-models
 # ---------------------------------------------------------------------------
 
+
 class Character(BaseModel):
     """A character in the story."""
+
     name: str
     traits: list[str] = Field(default_factory=list)
     visual_description: str = ""
@@ -52,21 +60,23 @@ class Character(BaseModel):
 
 class Direction(BaseModel):
     """A single user creative direction entry."""
+
     page: int
     type: DirectionType
     input: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class Page(BaseModel):
     """A single story page."""
+
     number: int
     text: str
     summary: str
     scene_description: str = ""
-    image_base64: Optional[str] = None
-    narration_audio_base64: Optional[str] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    image_base64: str | None = None
+    narration_audio_base64: str | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 # ---------------------------------------------------------------------------
@@ -107,7 +117,7 @@ class StoryState(BaseModel):
     pages: list[Page] = Field(default_factory=list)
     direction_log: list[Direction] = Field(default_factory=list)
     is_complete: bool = False
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def current_page(self) -> int:
@@ -191,11 +201,11 @@ class StoryState(BaseModel):
 
         if user_direction:
             sections.append("")
-            sections.append(f"=== NEW DIRECTION ===")
+            sections.append("=== NEW DIRECTION ===")
             sections.append(user_direction)
 
         sections.append("")
-        sections.append(f"=== TASK ===")
+        sections.append("=== TASK ===")
         sections.append(f"Write page {page_number} of the story.")
         sections.append("")
         sections.append(
@@ -217,16 +227,18 @@ class StoryState(BaseModel):
         """
         if not self.pages:
             return (
-                f"Story seed: \"{self.seed}\"\n"
+                f'Story seed: "{self.seed}"\n'
                 f"Style: {self.style.value}, Age: {self.age_profile['label']}\n"
                 f"No pages generated yet. Help the user flesh out their idea."
             )
 
-        char_names = ", ".join(c.name for c in self.characters) if self.characters else "none defined"
+        char_names = (
+            ", ".join(c.name for c in self.characters) if self.characters else "none defined"
+        )
         last_summary = self.pages[-1].summary
 
         return (
-            f"Story about: \"{self.seed}\"\n"
+            f'Story about: "{self.seed}"\n'
             f"Characters: {char_names}\n"
             f"Page {self.current_page} of ~{self.max_pages}\n"
             f"Last event: {last_summary}\n"

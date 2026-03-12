@@ -10,9 +10,10 @@ The Live agent acts as a CREATIVE COMPANION:
 from __future__ import annotations
 
 import asyncio
-import base64
+import contextlib
 import logging
-from typing import Any, Callable, Awaitable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from google import genai
 from google.genai import types
@@ -119,10 +120,8 @@ class LiveSessionService:
         """Close the Live API session."""
         if self._receive_task:
             self._receive_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._receive_task
-            except asyncio.CancelledError:
-                pass
             self._receive_task = None
 
         if self._session:
@@ -162,14 +161,9 @@ class LiveSessionService:
                             )
 
                     # Handle model audio output (agent conversation)
-                    if (
-                        response.server_content
-                        and response.server_content.model_turn
-                    ):
+                    if response.server_content and response.server_content.model_turn:
                         for part in response.server_content.model_turn.parts:
-                            if part.inline_data and isinstance(
-                                part.inline_data.data, bytes
-                            ):
+                            if part.inline_data and isinstance(part.inline_data.data, bytes):
                                 await on_agent_audio(part.inline_data.data)
                             elif part.text:
                                 await on_agent_text(part.text)

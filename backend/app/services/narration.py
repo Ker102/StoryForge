@@ -44,8 +44,8 @@ class NarrationService:
             response = await self.client.aio.models.generate_content(
                 model=self.model,
                 contents=f"Read the following story page aloud in a warm, "
-                         f"expressive storybook narrator voice. Read it slowly "
-                         f"and clearly for children:\n\n{text}",
+                f"expressive storybook narrator voice. Read it slowly "
+                f"and clearly for children:\n\n{text}",
                 config=types.GenerateContentConfig(
                     response_modalities=["AUDIO"],
                     speech_config=types.SpeechConfig(
@@ -68,6 +68,6 @@ class NarrationService:
             logger.warning("TTS response contained no audio data")
             return None
 
-        except Exception as e:
+        except Exception:
             logger.exception("Narration generation failed")
             return None

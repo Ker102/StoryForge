@@ -6,7 +6,6 @@ In-memory store for hackathon speed. Firestore persistence can be added later.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from app.models.story import (
     AgeSetting,
@@ -48,15 +47,11 @@ class StoryStateManager:
                 seed=seed,
             )
         except ValueError as e:
-            raise ValueError(
-                f"Invalid style '{style}' or age_setting '{age_setting}': {e}"
-            ) from e
+            raise ValueError(f"Invalid style '{style}' or age_setting '{age_setting}': {e}") from e
 
         # Log initial seed as a direction
         if seed:
-            state.direction_log.append(
-                Direction(page=0, type=DirectionType.SEED, input=seed)
-            )
+            state.direction_log.append(Direction(page=0, type=DirectionType.SEED, input=seed))
 
         self._sessions[state.session_id] = state
         logger.info(
@@ -67,7 +62,7 @@ class StoryStateManager:
         )
         return state
 
-    def get_session(self, session_id: str) -> Optional[StoryState]:
+    def get_session(self, session_id: str) -> StoryState | None:
         """Get a session by ID."""
         return self._sessions.get(session_id)
 
@@ -76,9 +71,7 @@ class StoryStateManager:
         state = self._sessions.get(session_id)
         if state:
             state.seed = seed
-            state.direction_log.append(
-                Direction(page=0, type=DirectionType.SEED, input=seed)
-            )
+            state.direction_log.append(Direction(page=0, type=DirectionType.SEED, input=seed))
             logger.info("Session %s seed set (%d chars)", session_id, len(seed))
 
     def delete_session(self, session_id: str) -> None:

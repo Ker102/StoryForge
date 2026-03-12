@@ -21,10 +21,10 @@ from app.models.story import (
     Page,
     StoryState,
 )
-from app.services.story_writer import StoryWriterService
 from app.services.image_service import ImageService
 from app.services.narration import NarrationService
 from app.services.safety import SafetyService
+from app.services.story_writer import StoryWriterService
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +68,7 @@ def _get_safety() -> SafetyService:
 # ---------------------------------------------------------------------------
 # ADK FunctionTools
 # ---------------------------------------------------------------------------
+
 
 async def generate_story_page(
     user_direction: str,
@@ -121,7 +122,10 @@ async def generate_story_page(
         page_text = writer_result["text"]
         if not safety.is_text_safe(page_text, story_state.age_setting):
             logger.error("Page text failed safety check after retry")
-            return {"status": "error", "message": "Unable to generate safe content. Please try again."}
+            return {
+                "status": "error",
+                "message": "Unable to generate safe content. Please try again.",
+            }
 
     # Step 2: Generate illustration + narration in parallel
     image_base64, narration_base64 = await asyncio.gather(
@@ -210,7 +214,7 @@ async def finish_story(
         return {"status": "error", "message": "No active story session."}
 
     # Generate final page
-    result = await generate_story_page(
+    _result = await generate_story_page(
         user_direction=f"This is the FINAL page. Wrap up the story: {ending_direction}",
         tool_context=tool_context,
     )
@@ -228,6 +232,7 @@ async def finish_story(
 # ---------------------------------------------------------------------------
 # Agent definition
 # ---------------------------------------------------------------------------
+
 
 def build_quill_agent(story_state: StoryState) -> Agent:
     """Build the Quill agent with the current story context baked into the prompt.
@@ -258,7 +263,7 @@ The illustration turned out amazing!") and ask what should happen next.
 YOUR PERSONALITY:
 - Warm and encouraging — every idea is a great idea
 - Curious — ask "what if" questions to spark creativity
-- Playful — use fun language appropriate for {profile['label']}
+- Playful — use fun language appropriate for {profile["label"]}
 - Gently guiding — help shape the story without dominating
 - Brief — keep your responses short and conversational (2-3 sentences max)
 
@@ -270,7 +275,7 @@ CONVERSATION GUIDELINES:
 - After generating, ask about the next page naturally
 - If the user seems done, gently ask: "Should we wrap up the story, \
 or is there more adventure to come?"
-- Adapt your vocabulary to match the {profile['label']} age group
+- Adapt your vocabulary to match the {profile["label"]} age group
 
 TOOL USAGE:
 - Call generate_story_page when the user has described enough for a new page

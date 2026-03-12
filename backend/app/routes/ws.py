@@ -19,12 +19,14 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
 from app.agents.quill import build_quill_agent
+from app.middleware.auth import verify_ws_token
 from app.models.session import (
     AgentTextMessage,
     PageUpdateMessage,
     StatusMessage,
     WSMessageType,
 )
+from app.services import firestore_service
 from app.state.manager import state_manager
 
 logger = logging.getLogger(__name__)
@@ -48,6 +50,7 @@ async def story_websocket(websocket: WebSocket):
 
     session_id = None
     adk_session = None
+    user_id = None  # Firebase UID (None = anonymous)
     send_lock = asyncio.Lock()
 
     async def safe_send(msg: dict) -> None:
@@ -86,6 +89,12 @@ async def story_websocket(websocket: WebSocket):
             seed=init_data.get("seed", ""),
         )
         session_id = story_state.session_id
+
+        # Verify auth token (optional — anonymous sessions allowed)
+        auth_token = init_data.get("token")
+        user_info = await verify_ws_token(auth_token)
+        if user_info:
+            user_id = user_info["uid"]
 
         await safe_send(
             StatusMessage(
@@ -190,6 +199,16 @@ async def story_websocket(websocket: WebSocket):
                             await _session_service.append_event(
                                 current_session, clear_evt
                             )
+
+                            # Persist to Firestore (if authenticated)
+                            if user_id:
+                                story_state_obj = current_session.state.get(
+                                    "story_state"
+                                )
+                                if story_state_obj:
+                                    await firestore_service.save_story(
+                                        user_id, story_state_obj
+                                    )
 
                         # Check for story completion
                         if current_session.state.get("story_complete"):

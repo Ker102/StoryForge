@@ -13,6 +13,7 @@ dependencies = [
     "pydantic-settings>=2.0",
     "reportlab>=4.0",
     "python-dotenv>=1.0",
+    "firebase-admin>=6.0",
 ]
 
 [project.optional-dependencies]

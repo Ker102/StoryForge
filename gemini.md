@@ -35,9 +35,9 @@ Observability pipeline + test suite (new-feature branch)
 - [x] Instrumented narration.py (TTS tracing)
 - [x] Instrumented safety.py (block counting with labels)
 - [x] Wired observability dashboard into main.py
+- [x] Test suite: 122 tests across 5 files (models, safety, state, observability, API)
+- [x] All tests passing ✅
 
 ## Next Steps
 
-- [ ] Write comprehensive test suite (models, safety, state, observability, API)
-- [ ] Run pytest and verify all tests pass
 - [ ] Wire audio bidi-streaming via ADK run_live()

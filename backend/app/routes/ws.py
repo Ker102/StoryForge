@@ -15,7 +15,7 @@ import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google.adk.events import Event, EventActions
-from google.adk.runners import InMemoryRunner
+from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
@@ -114,9 +114,10 @@ async def story_websocket(websocket: WebSocket):
 
         # --- Build ADK Agent and Runner ---
         quill_agent = build_quill_agent(story_state)
-        runner = InMemoryRunner(
+        runner = Runner(
             agent=quill_agent,
             app_name="storyforge",
+            session_service=_session_service,
         )
 
         # Create ADK session with story_state in state dict

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import time
 
 from google import genai
 from google.genai import types
@@ -45,17 +46,35 @@ class ImageService:
 
         logger.info("Generating illustration: style=%s, prompt=%s...", style, prompt[:80])
 
+        from app.observability import metrics, tracer
+        from app.observability.trace import SpanStatus
+
         # Try Imagen first
         try:
-            return await self._generate_with_imagen(prompt, negative)
+            span = tracer.start_span("imagen.generate", attributes={"model": self.image_model})
+            metrics.api_calls.inc(labels={"service": "image", "model": self.image_model})
+            _start = time.time()
+            result = await self._generate_with_imagen(prompt, negative)
+            metrics.api_latency.observe(time.time() - _start)
+            tracer.end_span(span, SpanStatus.OK)
+            return result
         except Exception as e:
             logger.warning("Imagen failed (%s), falling back to Gemini image", e)
+            tracer.end_span(span, SpanStatus.ERROR)
 
         # Fallback to Gemini native image generation
         try:
-            return await self._generate_with_gemini(prompt)
+            span = tracer.start_span("gemini.generate_image", attributes={"model": self.fallback_model})
+            metrics.api_calls.inc(labels={"service": "image", "model": self.fallback_model})
+            _start = time.time()
+            result = await self._generate_with_gemini(prompt)
+            metrics.api_latency.observe(time.time() - _start)
+            tracer.end_span(span, SpanStatus.OK)
+            return result
         except Exception as e:
             logger.error("Gemini image generation also failed: %s", e)
+            tracer.end_span(span, SpanStatus.ERROR)
+            metrics.errors.inc(labels={"service": "image"})
             return None
 
     async def _generate_with_imagen(self, prompt: str, negative_prompt: str) -> str:

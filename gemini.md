@@ -1,7 +1,7 @@
 # StoryForge — Progress Tracker
 
 ## Current Task
-Firebase integration + frontend wiring (feature/firebase branch)
+Observability pipeline + test suite (new-feature branch)
 
 ## Progress
 - [x] Backend scaffold (PR #1 on `feature/backend-scaffold`)
@@ -24,8 +24,20 @@ Firebase integration + frontend wiring (feature/firebase branch)
 - [x] Backend: REST API routes (/api/stories)
 - [x] Backend: Auth token verification in WebSocket INIT
 - [x] Frontend: Firebase SDK (Google Sign-In) + WebSocket client
+- [x] Observability: in-process tracing (trace.py) with ring buffer
+- [x] Observability: thread-safe metrics (metrics.py) - counters, histograms, gauges
+- [x] Observability: dashboard endpoints (/observability/health, /metrics, /traces)
+- [x] Instrumented quill.py (generate_story_page, finish_story)
+- [x] Instrumented orchestrator.py (pipeline steps with parent/child spans)
+- [x] Instrumented ws.py (active_websockets gauge)
+- [x] Instrumented story_writer.py (API latency + tracing)
+- [x] Instrumented image_service.py (Imagen/Gemini fallback tracing)
+- [x] Instrumented narration.py (TTS tracing)
+- [x] Instrumented safety.py (block counting with labels)
+- [x] Wired observability dashboard into main.py
 
 ## Next Steps
 
-- [ ] Add GOOGLE_API_KEY to .env and run integration tests
+- [ ] Write comprehensive test suite (models, safety, state, observability, API)
+- [ ] Run pytest and verify all tests pass
 - [ ] Wire audio bidi-streaming via ADK run_live()

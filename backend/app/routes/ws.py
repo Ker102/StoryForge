@@ -49,6 +49,13 @@ async def story_websocket(websocket: WebSocket):
     await websocket.accept()
     logger.info("WebSocket client connected")
 
+    # Track active connections
+    from app.observability import metrics as obs_metrics
+    from app.observability import tracer as obs_tracer
+    from app.observability.trace import SpanStatus
+
+    obs_metrics.active_websockets.inc()
+
     session_id = None
     adk_session = None
     user_id = None  # Firebase UID (None = anonymous)
@@ -265,6 +272,7 @@ async def story_websocket(websocket: WebSocket):
                 ).model_dump()
             )
     finally:
+        obs_metrics.active_websockets.dec()
         if session_id:
             logger.info("Cleaning up session %s", session_id)
             if adk_session is not None:

@@ -15,7 +15,7 @@ Observability pipeline + test suite (new-feature branch)
 - [x] README.md with badges, architecture, and feature grid
 - [x] Frontend (Vite+React) merged into main from `frontend-ui`
 - [x] ADK refactor: Quill agent definition with FunctionTools
-- [x] ADK refactor: WebSocket route uses InMemoryRunner
+- [x] ADK refactor: WebSocket route uses Runner with shared session_service
 - [x] google-adk dependency added to pyproject.toml
 - [x] CodeRabbit PR #6 fixes (7 items: lazy init, safety, model, state, cleanup)
 - [x] Firebase project created (storyforgegeminilive)
@@ -37,6 +37,8 @@ Observability pipeline + test suite (new-feature branch)
 - [x] Wired observability dashboard into main.py
 - [x] Test suite: 122 tests across 5 files (models, safety, state, observability, API)
 - [x] All tests passing ✅
+- [x] Bug fix: InMemoryRunner → Runner(session_service=_session_service)
+- [x] E2E verification: REST endpoints, WebSocket gauge tracking, Gemini API pipeline
 
 ## Next Steps
 

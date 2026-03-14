@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any
 
 from google import genai
@@ -57,6 +58,16 @@ class StoryWriterService:
             len(prompt),
         )
 
+        from app.observability import metrics, tracer
+        from app.observability.trace import SpanStatus
+
+        span = tracer.start_span(
+            "gemini.generate_content",
+            attributes={"model": self.model, "prompt_length": len(prompt)},
+        )
+        metrics.api_calls.inc(labels={"service": "story_writer", "model": self.model})
+        _api_start = time.time()
+
         response = await self.client.aio.models.generate_content(
             model=self.model,
             contents=prompt,
@@ -65,6 +76,10 @@ class StoryWriterService:
                 temperature=0.9,  # creative but coherent
             ),
         )
+
+        metrics.api_latency.observe(time.time() - _api_start)
+        span.set_attribute("response_length", len(getattr(response, 'text', '') or ''))
+        tracer.end_span(span, SpanStatus.OK)
 
         raw_text = getattr(response, "text", None)
 

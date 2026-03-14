@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 from google.adk import Agent
@@ -83,9 +84,21 @@ async def generate_story_page(
         user_direction: Clear summary of what the user wants on this page,
             including any characters, events, mood, or specific details.
     """
+    from app.observability import metrics, tracer
+    from app.observability.trace import SpanStatus
+
+    span = tracer.start_span(
+        "generate_story_page",
+        attributes={"user_direction": user_direction[:200] if user_direction else ""},
+    )
+    metrics.tool_calls_total.inc(labels={"tool": "generate_story_page"})
+    _start = time.time()
     # Retrieve story_state from ADK session state
     story_state: StoryState = tool_context.state.get("story_state")
     if story_state is None:
+        span.add_event("error", {"reason": "no_active_session"})
+        tracer.end_span(span, SpanStatus.ERROR)
+        metrics.errors.inc(labels={"tool": "generate_story_page"})
         return {"status": "error", "message": "No active story session."}
 
     page_number = story_state.current_page + 1
@@ -114,6 +127,8 @@ async def generate_story_page(
     # Safety check — regenerate if unsafe, abort if still fails
     if not safety.is_text_safe(page_text, story_state.age_setting):
         logger.warning("Page text failed safety check, regenerating...")
+        metrics.safety_blocks.inc(labels={"stage": "first_pass"})
+        span.add_event("safety_block", {"attempt": 1})
         writer_result = await story_writer.generate_page(
             story_state=story_state,
             page_number=page_number,
@@ -122,6 +137,9 @@ async def generate_story_page(
         page_text = writer_result["text"]
         if not safety.is_text_safe(page_text, story_state.age_setting):
             logger.error("Page text failed safety check after retry")
+            metrics.safety_blocks.inc(labels={"stage": "second_pass"})
+            span.add_event("safety_block_final", {"attempt": 2})
+            tracer.end_span(span, SpanStatus.ERROR)
             return {
                 "status": "error",
                 "message": "Unable to generate safe content. Please try again.",
@@ -186,6 +204,17 @@ async def generate_story_page(
         "narration_audio_base64": narration_base64,
     }
 
+    # Record observability data
+    span.set_attribute("page_number", page_number)
+    span.set_attribute("text_length", len(page_text))
+    span.set_attribute("has_image", image_base64 is not None)
+    span.set_attribute("has_narration", narration_base64 is not None)
+    span.add_event("page_ready")
+    tracer.end_span(span, SpanStatus.OK)
+    metrics.pages_generated.inc()
+    metrics.tool_duration.observe(time.time() - _start)
+    metrics.page_text_length.observe(len(page_text))
+
     return {
         "status": "success",
         "page_number": page_number,
@@ -209,8 +238,19 @@ async def finish_story(
         ending_direction: How the user wants the story to end,
             including any final events or resolution.
     """
+    from app.observability import metrics, tracer
+    from app.observability.trace import SpanStatus
+
+    span = tracer.start_span(
+        "finish_story",
+        attributes={"ending_direction": ending_direction[:200] if ending_direction else ""},
+    )
+    metrics.tool_calls_total.inc(labels={"tool": "finish_story"})
+    _start = time.time()
+
     story_state: StoryState = tool_context.state.get("story_state")
     if story_state is None:
+        tracer.end_span(span, SpanStatus.ERROR)
         return {"status": "error", "message": "No active story session."}
 
     # Generate final page
@@ -221,6 +261,11 @@ async def finish_story(
 
     story_state.is_complete = True
     tool_context.state["story_complete"] = True
+
+    span.set_attribute("total_pages", story_state.current_page)
+    span.add_event("story_complete")
+    tracer.end_span(span, SpanStatus.OK)
+    metrics.tool_duration.observe(time.time() - _start)
 
     return {
         "status": "complete",

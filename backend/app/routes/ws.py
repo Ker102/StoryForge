@@ -15,7 +15,7 @@ import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google.adk.events import Event, EventActions
-from google.adk.runners import InMemoryRunner
+from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
@@ -48,6 +48,13 @@ async def story_websocket(websocket: WebSocket):
     """
     await websocket.accept()
     logger.info("WebSocket client connected")
+
+    # Track active connections
+    from app.observability import metrics as obs_metrics
+    from app.observability import tracer as obs_tracer
+    from app.observability.trace import SpanStatus
+
+    obs_metrics.active_websockets.inc()
 
     session_id = None
     adk_session = None
@@ -107,9 +114,10 @@ async def story_websocket(websocket: WebSocket):
 
         # --- Build ADK Agent and Runner ---
         quill_agent = build_quill_agent(story_state)
-        runner = InMemoryRunner(
+        runner = Runner(
             agent=quill_agent,
             app_name="storyforge",
+            session_service=_session_service,
         )
 
         # Create ADK session with story_state in state dict
@@ -265,6 +273,7 @@ async def story_websocket(websocket: WebSocket):
                 ).model_dump()
             )
     finally:
+        obs_metrics.active_websockets.dec()
         if session_id:
             logger.info("Cleaning up session %s", session_id)
             if adk_session is not None:

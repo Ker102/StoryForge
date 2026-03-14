@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routes.api import router as api_router
 from app.routes.export import router as export_router
 from app.routes.ws import router as ws_router
+from app.observability.dashboard import router as obs_router
 
 app = FastAPI(
     title="StoryForge API",
@@ -27,6 +28,7 @@ app.add_middleware(
 app.include_router(ws_router)
 app.include_router(export_router, prefix="/export", tags=["export"])
 app.include_router(api_router, prefix="/api", tags=["api"])
+app.include_router(obs_router, prefix="/observability", tags=["observability"])
 
 
 @app.get("/health")

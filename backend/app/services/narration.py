@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import time
 
 from google import genai
 from google.genai import types
@@ -41,6 +42,16 @@ class NarrationService:
             return None
 
         try:
+            from app.observability import metrics, tracer
+            from app.observability.trace import SpanStatus
+
+            span = tracer.start_span(
+                "gemini.tts",
+                attributes={"model": self.model, "text_length": len(text)},
+            )
+            metrics.api_calls.inc(labels={"service": "narration", "model": self.model})
+            _start = time.time()
+
             response = await self.client.aio.models.generate_content(
                 model=self.model,
                 contents=f"Read the following story page aloud in a warm, "
@@ -58,16 +69,24 @@ class NarrationService:
                 ),
             )
 
+            metrics.api_latency.observe(time.time() - _start)
+
             # Extract audio data from response
             for part in response.parts:
                 if part.inline_data and part.inline_data.data:
                     audio_bytes = part.inline_data.data
                     if isinstance(audio_bytes, bytes):
+                        span.set_attribute("audio_size_bytes", len(audio_bytes))
+                        tracer.end_span(span, SpanStatus.OK)
                         return base64.b64encode(audio_bytes).decode("utf-8")
 
             logger.warning("TTS response contained no audio data")
+            tracer.end_span(span, SpanStatus.ERROR)
             return None
 
         except Exception:
             logger.exception("Narration generation failed")
+            if 'span' in locals():
+                tracer.end_span(span, SpanStatus.ERROR)
+            metrics.errors.inc(labels={"service": "narration"})
             return None

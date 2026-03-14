@@ -58,6 +58,8 @@ class SafetyService:
         for theme in BLOCKED_THEMES:
             if re.search(r"\b" + re.escape(theme) + r"\b", text_lower):
                 logger.warning("Blocked theme found in text: %s", theme)
+                from app.observability import metrics
+                metrics.safety_blocks.inc(labels={"reason": theme, "age": age_setting.value})
                 return False
 
         # Additional restrictions for younger children
@@ -65,6 +67,8 @@ class SafetyService:
             for word in CHILDREN_BLOCKED:
                 if re.search(r"\b" + re.escape(word) + r"\b", text_lower):
                     logger.warning("Children-blocked word found: %s", word)
+                    from app.observability import metrics
+                    metrics.safety_blocks.inc(labels={"reason": word, "age": age_setting.value})
                     return False
 
         return True

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -39,6 +40,12 @@ class Orchestrator:
         self.narration_service = NarrationService()
         self.safety = SafetyService()
 
+        # Lazy import to avoid circular imports
+        from app.observability import metrics, tracer
+
+        self._tracer = tracer
+        self._metrics = metrics
+
     async def handle_tool_call(
         self,
         tool_name: str,
@@ -57,31 +64,57 @@ class Orchestrator:
         Returns:
             Brief response dict for the Live API agent.
         """
-        if tool_name == "generate_story_page":
-            # Server-side validation: override model-provided page_number
-            expected_page = story_state.current_page + 1
-            provided_page = tool_args.get("page_number", expected_page)
-            if provided_page != expected_page:
-                logger.warning(
-                    "Model provided page_number=%d, expected=%d — overriding",
-                    provided_page,
-                    expected_page,
+        from app.observability.trace import SpanStatus
+
+        span = self._tracer.start_span(
+            f"orchestrator.{tool_name}",
+            attributes={"tool_name": tool_name},
+        )
+        self._metrics.tool_calls_total.inc(labels={"tool": tool_name, "source": "orchestrator"})
+        _start = time.time()
+
+        try:
+            if tool_name == "generate_story_page":
+                # Server-side validation: override model-provided page_number
+                expected_page = story_state.current_page + 1
+                provided_page = tool_args.get("page_number", expected_page)
+                if provided_page != expected_page:
+                    logger.warning(
+                        "Model provided page_number=%d, expected=%d — overriding",
+                        provided_page,
+                        expected_page,
+                    )
+                    span.add_event("page_number_override", {
+                        "provided": provided_page, "expected": expected_page
+                    })
+                result = await self._generate_page(
+                    story_state=story_state,
+                    page_number=expected_page,
+                    user_direction=tool_args.get("user_direction", ""),
+                    on_page_ready=on_page_ready,
+                    parent_span=span,
                 )
-            return await self._generate_page(
-                story_state=story_state,
-                page_number=expected_page,
-                user_direction=tool_args.get("user_direction", ""),
-                on_page_ready=on_page_ready,
-            )
-        elif tool_name == "finish_story":
-            return await self._finish_story(
-                story_state=story_state,
-                ending_direction=tool_args.get("ending_direction", ""),
-                on_page_ready=on_page_ready,
-            )
-        else:
-            logger.warning("Unknown tool call: %s", tool_name)
-            return {"status": "error", "message": f"Unknown tool: {tool_name}"}
+            elif tool_name == "finish_story":
+                result = await self._finish_story(
+                    story_state=story_state,
+                    ending_direction=tool_args.get("ending_direction", ""),
+                    on_page_ready=on_page_ready,
+                    parent_span=span,
+                )
+            else:
+                logger.warning("Unknown tool call: %s", tool_name)
+                span.add_event("unknown_tool")
+                result = {"status": "error", "message": f"Unknown tool: {tool_name}"}
+
+            self._tracer.end_span(span, SpanStatus.OK)
+            self._metrics.tool_duration.observe(time.time() - _start)
+            return result
+
+        except Exception as exc:
+            span.add_event("error", {"error.type": type(exc).__name__})
+            self._tracer.end_span(span, SpanStatus.ERROR)
+            self._metrics.errors.inc(labels={"tool": tool_name})
+            raise
 
     async def _generate_page(
         self,
@@ -89,6 +122,7 @@ class Orchestrator:
         page_number: int,
         user_direction: str,
         on_page_ready: Callable[[Page], Awaitable[None]],
+        parent_span=None,
     ) -> dict[str, Any]:
         """Generate a story page: text + illustration + narration in parallel."""
 
@@ -102,24 +136,32 @@ class Orchestrator:
                 )
             )
 
+        from app.observability.trace import SpanStatus
+
         # Step 1: Generate story text
+        write_span = self._tracer.start_span("story_writer.generate_page", parent=parent_span)
         writer_result = await self.story_writer.generate_page(
             story_state=story_state,
             page_number=page_number,
             user_direction=user_direction,
         )
+        self._tracer.end_span(write_span, SpanStatus.OK)
 
         page_text = writer_result["text"]
 
         # Safety check on text
+        safety_span = self._tracer.start_span("safety.check", parent=parent_span)
         if not self.safety.is_text_safe(page_text, story_state.age_setting):
             logger.warning("Page text failed safety check, regenerating...")
+            self._metrics.safety_blocks.inc(labels={"source": "orchestrator"})
+            safety_span.add_event("blocked", {"attempt": 1})
             writer_result = await self.story_writer.generate_page(
                 story_state=story_state,
                 page_number=page_number,
                 user_direction=user_direction + " (keep content child-friendly and safe)",
             )
             page_text = writer_result["text"]
+        self._tracer.end_span(safety_span, SpanStatus.OK)
 
         # Step 2: Generate illustration + narration in parallel
         illustration_task = asyncio.create_task(
@@ -179,6 +221,10 @@ class Orchestrator:
         # Step 4: Send page to frontend
         await on_page_ready(new_page)
 
+        # Record metrics
+        self._metrics.pages_generated.inc()
+        self._metrics.page_text_length.observe(len(page_text))
+
         # Step 5: Return brief response to Live API
         return {
             "status": "success",
@@ -192,6 +238,7 @@ class Orchestrator:
         story_state: StoryState,
         ending_direction: str,
         on_page_ready: Callable[[Page], Awaitable[None]],
+        parent_span=None,
     ) -> dict[str, Any]:
         """Generate the final page and mark the story as complete."""
         await self._generate_page(

@@ -180,7 +180,7 @@ async def generate_story_page(
         if isinstance(char_data, dict):
             name = char_data.get("name", "Unknown")
             if name.lower().strip() not in existing_names:
-                raw_traits = char_data.get("traits", [])
+                raw_traits = char_data.get("traits", []) or []
                 traits = raw_traits if isinstance(raw_traits, list) else [str(raw_traits)]
 
                 story_state.characters.append(

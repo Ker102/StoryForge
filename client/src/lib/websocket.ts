@@ -111,6 +111,10 @@ export async function connectToStory(
           scriptProcessor.connect(audioContext.destination);
         } catch (err) {
           console.error("Microphone error:", err);
+          if (mediaStream) {
+            mediaStream.getTracks().forEach((track) => track.stop());
+            mediaStream = null;
+          }
           handlers.onError?.("Could not access microphone.");
         }
       },

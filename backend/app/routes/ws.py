@@ -34,6 +34,8 @@ from app.state.manager import state_manager
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+AUDIO_MIME_TYPE = "audio/pcm;rate=16000"
+
 # Shared session service (persists across WebSocket connections)
 _session_service = InMemorySessionService()
 
@@ -59,6 +61,7 @@ async def story_websocket(websocket: WebSocket):
 
     session_id = None
     adk_session = None
+    agent_task = None
     user_id = None  # Firebase UID (None = anonymous)
     send_lock = asyncio.Lock()
 
@@ -213,6 +216,13 @@ async def story_websocket(websocket: WebSocket):
 
             except Exception as e:
                 logger.error("Agent live loop error: %s", e, exc_info=True)
+                await safe_send(
+                    StatusMessage(
+                        session_id=session_id,
+                        type=WSMessageType.ERROR,
+                        message="Quill encountered an error. Please try again.",
+                    ).model_dump()
+                )
 
         agent_task = asyncio.create_task(run_agent_loop())
 
@@ -251,7 +261,7 @@ async def story_websocket(websocket: WebSocket):
                         try:
                             _audio_bytes = base64.b64decode(audio_b64)
                             live_queue.send_realtime(
-                                types.Blob(mime_type="audio/pcm;rate=16000", data=_audio_bytes)
+                                types.Blob(mime_type=AUDIO_MIME_TYPE, data=_audio_bytes)
                             )
                         except binascii.Error:
                             logger.warning("Invalid base64 audio data")
@@ -267,7 +277,7 @@ async def story_websocket(websocket: WebSocket):
             elif "bytes" in message:
                 # Send raw binary PCM audio to Gemini
                 live_queue.send_realtime(
-                    types.Blob(mime_type="audio/pcm;rate=16000", data=message["bytes"])
+                    types.Blob(mime_type=AUDIO_MIME_TYPE, data=message["bytes"])
                 )
 
     except WebSocketDisconnect:

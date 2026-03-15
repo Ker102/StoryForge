@@ -32,6 +32,8 @@ export interface StorySession {
   sessionId: string | null;
   send: (msg: Record<string, unknown>) => void;
   sendText: (text: string) => void;
+  startRecording: () => Promise<void>;
+  stopRecording: () => void;
   close: () => void;
 }
 
@@ -39,6 +41,7 @@ export type MessageHandler = {
   onSessionReady?: (sessionId: string, session: StorySession) => void;
   onPageUpdate?: (page: PageUpdate) => void;
   onAgentText?: (text: string) => void;
+  onAudioData?: (audioData: ArrayBuffer | Blob) => void;
   onStatus?: (message: string) => void;
   onError?: (message: string) => void;
   onClose?: () => void;
@@ -57,6 +60,11 @@ export async function connectToStory(
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(`${WS_BASE}/ws/story`);
 
+    let audioContext: AudioContext | null = null;
+    let mediaStream: MediaStream | null = null;
+    let scriptProcessor: ScriptProcessorNode | null = null;
+    let sourceNode: MediaStreamAudioSourceNode | null = null;
+
     const session: StorySession = {
       ws,
       sessionId: null,
@@ -68,10 +76,69 @@ export async function connectToStory(
       sendText: (text) => {
         session.send({ type: "text_input", text });
       },
+      startRecording: async () => {
+        try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              channelCount: 1,
+              sampleRate: 16000,
+            },
+          });
+          audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+            sampleRate: 16000,
+          });
+
+          sourceNode = audioContext.createMediaStreamSource(mediaStream);
+
+          // Use ScriptProcessorNode to get raw PCM data (4096 batch size)
+          scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+          scriptProcessor.onaudioprocess = (e) => {
+            if (ws.readyState !== WebSocket.OPEN) return;
+            const inputData = e.inputBuffer.getChannelData(0);
+            
+            // Convert Float32 to Int16
+            const pcmData = new Int16Array(inputData.length);
+            for (let i = 0; i < inputData.length; i++) {
+              let s = Math.max(-1, Math.min(1, inputData[i]));
+              pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+            }
+            
+            // Send binary frame
+            ws.send(pcmData.buffer);
+          };
+
+          sourceNode.connect(scriptProcessor);
+          scriptProcessor.connect(audioContext.destination);
+        } catch (err) {
+          console.error("Microphone error:", err);
+          handlers.onError?.("Could not access microphone.");
+        }
+      },
+      stopRecording: () => {
+        if (scriptProcessor) {
+          scriptProcessor.disconnect();
+          scriptProcessor = null;
+        }
+        if (sourceNode) {
+          sourceNode.disconnect();
+          sourceNode = null;
+        }
+        if (audioContext) {
+          audioContext.close();
+          audioContext = null;
+        }
+        if (mediaStream) {
+          mediaStream.getTracks().forEach((t) => t.stop());
+          mediaStream = null;
+        }
+      },
       close: () => {
+        session.stopRecording();
         ws.close();
       },
     };
+
+    ws.binaryType = "arraybuffer";
 
     ws.onopen = () => {
       // Send INIT with auth token and story config
@@ -85,6 +152,12 @@ export async function connectToStory(
     };
 
     ws.onmessage = (event) => {
+      // Handle incoming binary audio chunks
+      if (typeof event.data !== "string") {
+        handlers.onAudioData?.(event.data);
+        return;
+      }
+
       try {
         const data = JSON.parse(event.data);
 

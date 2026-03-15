@@ -45,4 +45,4 @@ Observability pipeline + test suite (new-feature branch)
 
 ## Next Steps
 
-- [ ] Wire audio bidi-streaming via ADK run_live()
+- [x] Wire audio bidi-streaming via ADK run_live()

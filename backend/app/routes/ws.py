@@ -14,6 +14,7 @@ import json
 import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from google.adk.agents.live_request_queue import LiveRequestQueue
 from google.adk.events import Event, EventActions
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -134,7 +135,88 @@ async def story_websocket(websocket: WebSocket):
             ).model_dump()
         )
 
-        # --- Message receive + agent run loop ---
+        live_queue = LiveRequestQueue()
+
+        async def run_agent_loop():
+            try:
+                # The run_live method defaults to AUDIO if response_modalities is None
+                async for event in runner.run_live(
+                    user_id=session_id,
+                    session_id=adk_session.id,
+                    live_request_queue=live_queue,
+                ):
+                    # 1. Forward raw audio chunks directly to frontend
+                    if getattr(event, "inline_data", None) and getattr(event.inline_data, "data", None):
+                        async with send_lock:
+                            await websocket.send_bytes(event.inline_data.data)
+
+                    # 2. Forward agent text responses
+                    if getattr(event, "content", None) and getattr(event.content, "parts", None):
+                        for part in event.content.parts:
+                            if part.text:
+                                await safe_send(
+                                    AgentTextMessage(
+                                        session_id=session_id,
+                                        text=part.text,
+                                    ).model_dump()
+                                )
+
+                    # 3. Check for generated pages
+                    current_session = await _session_service.get_session(
+                        app_name="storyforge",
+                        user_id=session_id,
+                        session_id=adk_session.id,
+                    )
+                    latest_page = current_session.state.get("latest_page")
+                    if latest_page:
+                        await safe_send(
+                            PageUpdateMessage(
+                                session_id=session_id,
+                                page_number=latest_page["page_number"],
+                                text=latest_page["text"],
+                                summary=latest_page["summary"],
+                                image_base64=latest_page.get("image_base64"),
+                                narration_audio_base64=latest_page.get(
+                                    "narration_audio_base64"
+                                ),
+                            ).model_dump()
+                        )
+                        # Clear via proper ADK state_delta
+                        clear_evt = Event(
+                            invocation_id="clear_latest_page",
+                            author="system",
+                            actions=EventActions(state_delta={"latest_page": None}),
+                        )
+                        await _session_service.append_event(current_session, clear_evt)
+
+                        # Persist to Firestore (if authenticated)
+                        if user_id:
+                            story_state_obj = current_session.state.get("story_state")
+                            if story_state_obj:
+                                await firestore_service.save_story(user_id, story_state_obj)
+
+                    # 4. Check for story completion
+                    if current_session.state.get("story_complete"):
+                        await safe_send(
+                            StatusMessage(
+                                session_id=session_id,
+                                message="Your story is complete! Download it from the export page.",
+                            ).model_dump()
+                        )
+                        # Clear flag to prevent duplicate messages
+                        done_evt = Event(
+                            invocation_id="clear_story_complete",
+                            author="system",
+                            actions=EventActions(state_delta={"story_complete": False}),
+                        )
+                        await _session_service.append_event(current_session, done_evt)
+
+            except Exception as e:
+                logger.error("Agent live loop error: %s", e, exc_info=True)
+
+        agent_task = asyncio.create_task(run_agent_loop())
+
+        # --- Message receive + agent input loop ---
         while True:
             message = await websocket.receive()
 
@@ -154,93 +236,22 @@ async def story_websocket(websocket: WebSocket):
                 msg_type = data.get("type")
 
                 if msg_type == WSMessageType.TEXT_INPUT:
-                    # Send text to agent via ADK runner
+                    # Send text to agent via ADK live queue
                     user_text = data.get("text", "")
-                    if not user_text:
-                        continue
-
-                    async for event in runner.run_async(
-                        user_id=session_id,
-                        session_id=adk_session.id,
-                        new_message=types.UserContent(parts=[types.Part(text=user_text)]),
-                    ):
-                        # Forward agent text responses
-                        if event.content and event.content.parts:
-                            for part in event.content.parts:
-                                if part.text:
-                                    await safe_send(
-                                        AgentTextMessage(
-                                            session_id=session_id,
-                                            text=part.text,
-                                        ).model_dump()
-                                    )
-
-                        # Check if a page was generated (tool produced output)
-                        current_session = await _session_service.get_session(
-                            app_name="storyforge",
-                            user_id=session_id,
-                            session_id=adk_session.id,
-                        )
-                        latest_page = current_session.state.get("latest_page")
-                        if latest_page:
-                            await safe_send(
-                                PageUpdateMessage(
-                                    session_id=session_id,
-                                    page_number=latest_page["page_number"],
-                                    text=latest_page["text"],
-                                    summary=latest_page["summary"],
-                                    image_base64=latest_page.get("image_base64"),
-                                    narration_audio_base64=latest_page.get(
-                                        "narration_audio_base64"
-                                    ),
-                                ).model_dump()
-                            )
-                            # Clear via proper ADK state_delta
-                            clear_evt = Event(
-                                invocation_id="clear_latest_page",
-                                author="system",
-                                actions=EventActions(state_delta={"latest_page": None}),
-                            )
-                            await _session_service.append_event(current_session, clear_evt)
-
-                            # Persist to Firestore (if authenticated)
-                            if user_id:
-                                story_state_obj = current_session.state.get("story_state")
-                                if story_state_obj:
-                                    await firestore_service.save_story(user_id, story_state_obj)
-
-                        # Check for story completion
-                        if current_session.state.get("story_complete"):
-                            await safe_send(
-                                StatusMessage(
-                                    session_id=session_id,
-                                    message="Your story is complete! Download it from the export page.",
-                                ).model_dump()
-                            )
-                            # Clear flag to prevent duplicate messages
-                            done_evt = Event(
-                                invocation_id="clear_story_complete",
-                                author="system",
-                                actions=EventActions(state_delta={"story_complete": False}),
-                            )
-                            await _session_service.append_event(current_session, done_evt)
+                    if user_text:
+                        live_queue.send_content(types.Content(parts=[types.Part(text=user_text)]))
+                    else:
+                        # Empty text signals end of user turn / flush
+                        live_queue.send_activity_end()
 
                 elif msg_type == WSMessageType.AUDIO_CHUNK:
-                    # Audio input — decode and forward to agent
-                    # Note: For full voice streaming, use runner.run_live()
-                    # For now, log that audio was received
+                    # Audio payload as base64 legacy fallback
                     audio_b64 = data.get("audio_base64", "")
                     if audio_b64:
                         try:
                             _audio_bytes = base64.b64decode(audio_b64)
-                            # TODO: Integrate with runner.run_live() for
-                            # real-time audio bidi-streaming when ADK Live
-                            # API stabilizes. For now, voice goes via text
-                            # transcription on the frontend side.
-                            logger.debug(
-                                "Received audio chunk (%d bytes) — "
-                                "audio streaming via ADK run_live planned",
-                                len(_audio_bytes),
+                            live_queue.send_realtime(
+                                types.Blob(mime_type="audio/pcm;rate=16000", data=_audio_bytes)
                             )
                         except binascii.Error:
                             logger.warning("Invalid base64 audio data")
@@ -254,10 +265,9 @@ async def story_websocket(websocket: WebSocket):
                     )
 
             elif "bytes" in message:
-                # Raw binary audio — log for now
-                logger.debug(
-                    "Received raw audio (%d bytes) — ADK run_live integration planned",
-                    len(message["bytes"]),
+                # Send raw binary PCM audio to Gemini
+                live_queue.send_realtime(
+                    types.Blob(mime_type="audio/pcm;rate=16000", data=message["bytes"])
                 )
 
     except WebSocketDisconnect:
@@ -273,6 +283,9 @@ async def story_websocket(websocket: WebSocket):
                 ).model_dump()
             )
     finally:
+        if "agent_task" in locals() and agent_task:
+            agent_task.cancel()
+        
         obs_metrics.active_websockets.dec()
         if session_id:
             logger.info("Cleaning up session %s", session_id)

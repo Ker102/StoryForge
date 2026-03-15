@@ -159,11 +159,53 @@ export default function Home() {
     ch: 'children_5_8', te: 'teen_13_17', cr: 'adults', ed: 'educator'
   };
 
+  const playQueueRef = useRef<{buffer: ArrayBuffer}[]>([]);
+  const isPlayingRef = useRef(false);
+  const playContextRef = useRef<AudioContext | null>(null);
+
+  const processAudioQueue = async () => {
+    if (isPlayingRef.current || playQueueRef.current.length === 0) return;
+    isPlayingRef.current = true;
+
+    if (!playContextRef.current) {
+      playContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate: 24000,
+      });
+    }
+
+    try {
+      const { buffer } = playQueueRef.current.shift()!;
+      const pcm16 = new Int16Array(buffer);
+      const audioBuffer = playContextRef.current.createBuffer(1, pcm16.length, 24000);
+      const channelData = audioBuffer.getChannelData(0);
+      for (let i = 0; i < pcm16.length; i++) {
+        channelData[i] = pcm16[i] / 32768.0;
+      }
+
+      const source = playContextRef.current.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(playContextRef.current.destination);
+      
+      source.onended = () => {
+        isPlayingRef.current = false;
+        processAudioQueue();
+      };
+      source.start();
+    } catch (err) {
+      console.error("Playback error", err);
+      isPlayingRef.current = false;
+      processAudioQueue();
+    }
+  };
+
+  const [transcription, setTranscription] = useState('');
+
   // Connect to backend and start story
   const handleForgeStory = async () => {
     go('s6');
     setCurrentPage(null);
     setAgentText('');
+    setTranscription('');
     setStatusMsg('Connecting to Quill...');
 
     try {
@@ -189,6 +231,10 @@ export default function Home() {
           },
           onAgentText: (text) => {
             setAgentText(text);
+          },
+          onAudioData: (buffer) => {
+            playQueueRef.current.push({ buffer: buffer as ArrayBuffer });
+            processAudioQueue();
           },
           onStatus: (msg) => {
             setStatusMsg(msg);
@@ -437,7 +483,10 @@ export default function Home() {
       <div className={getScreenClass('s5')} id="s5">
         <div className="speak-top">
           <span className="speak-lbl">Listening…</span>
-          <button className="btn-close" aria-label="Close" onClick={() => go('s4')}>✕</button>
+          <button className="btn-close" aria-label="Close" onClick={() => {
+            storySession?.stopRecording();
+            go('s6');
+          }}>✕</button>
         </div>
         <div className="speak-main">
           <div className="mic-wrap">
@@ -457,7 +506,7 @@ export default function Home() {
               Transcribing
             </div>
             <div className="tc-text tc-cursor" style={{fontSize: 'var(--t-base)', color: '#fff', lineHeight: 1.4, fontWeight: 500}}>
-              A small robot scared of the dark finds a glowing star in a forest…
+              {transcription || "Say something to guide the story..."}
             </div>
           </div>
           <div className="etags" style={{display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center'}}>
@@ -468,8 +517,16 @@ export default function Home() {
           </div>
         </div>
         <div className="speak-bottom">
-          <button className="btn-rerecord">↺ Re-record</button>
-          <button className="btn-forge" onClick={() => go('s6')}>✓ &nbsp;Forge My Story</button>
+          <button className="btn-rerecord" onClick={() => {
+            setTranscription('');
+          }}>↺ Clear</button>
+          <button className="btn-forge" onClick={() => {
+            storySession?.stopRecording();
+            // Send empty text input to act as a "turn complete" signal
+            // so the backend knows to generate the response based on the audio
+            storySession?.sendText('');
+            go('s6');
+          }}>✓ &nbsp;Submit Voice</button>
         </div>
       </div>
 
@@ -528,7 +585,13 @@ export default function Home() {
               (e.target as HTMLInputElement).value = '';
             }
           }} />
-          <button className="steer-mic" aria-label="Speak direction" onClick={() => go('s5')}>🎙️</button>
+          <button className="steer-mic" aria-label="Speak direction" onClick={() => {
+            go('s5');
+            setTranscription('');
+            if (storySession) {
+              storySession.startRecording();
+            }
+          }}>🎙️</button>
         </div>
       </div>
 

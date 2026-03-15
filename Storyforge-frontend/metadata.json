@@ -1,7 +1,0 @@
-{
-  "name": "StoryForge",
-  "description": "An AI-powered storybook creator that turns your spoken ideas into illustrated books with narration.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
-}

@@ -39,7 +39,10 @@ Observability pipeline + test suite (new-feature branch)
 - [x] All tests passing ✅
 - [x] Bug fix: InMemoryRunner → Runner(session_service=_session_service)
 - [x] E2E verification: REST endpoints, WebSocket gauge tracking, Gemini API pipeline
+- [x] Frontend bug fix: ReferenceError on session object in `Home.tsx`
+- [x] Frontend bug fix: Microphone button navigation to Speak screen
+- [x] Backend bug fix: Pydantic ValidationError on Character traits (LLM string handling)
 
 ## Next Steps
 
-- [ ] Wire audio bidi-streaming via ADK run_live()
+- [x] Wire audio bidi-streaming via ADK run_live()

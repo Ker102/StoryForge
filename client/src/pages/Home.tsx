@@ -174,10 +174,10 @@ export default function Home() {
           seed: seedInputRef.current?.value || '',
         },
         {
-          onSessionReady: (sid) => {
+          onSessionReady: (sid, activeSession) => {
             setStatusMsg('Quill is ready! Generating your story...');
             // Send initial prompt to start generation
-            session.sendText(
+            activeSession.sendText(
               seedInputRef.current?.value ||
                 'Create a wonderful story for me'
             );
@@ -528,7 +528,7 @@ export default function Home() {
               (e.target as HTMLInputElement).value = '';
             }
           }} />
-          <button className="steer-mic" aria-label="Speak direction" onClick={() => go('s7')}>🎙️</button>
+          <button className="steer-mic" aria-label="Speak direction" onClick={() => go('s5')}>🎙️</button>
         </div>
       </div>
 

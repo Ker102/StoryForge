@@ -36,7 +36,7 @@ export interface StorySession {
 }
 
 export type MessageHandler = {
-  onSessionReady?: (sessionId: string) => void;
+  onSessionReady?: (sessionId: string, session: StorySession) => void;
   onPageUpdate?: (page: PageUpdate) => void;
   onAgentText?: (text: string) => void;
   onStatus?: (message: string) => void;
@@ -91,7 +91,7 @@ export async function connectToStory(
         switch (data.type) {
           case "session_ready":
             session.sessionId = data.session_id;
-            handlers.onSessionReady?.(data.session_id);
+            handlers.onSessionReady?.(data.session_id, session);
             resolved = true;
             resolve(session);
             break;

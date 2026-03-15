@@ -39,6 +39,8 @@ Observability pipeline + test suite (new-feature branch)
 - [x] All tests passing ✅
 - [x] Bug fix: InMemoryRunner → Runner(session_service=_session_service)
 - [x] E2E verification: REST endpoints, WebSocket gauge tracking, Gemini API pipeline
+- [x] Frontend bug fix: ReferenceError on session object in `Home.tsx`
+- [x] Frontend bug fix: Microphone button navigation to Speak screen
 
 ## Next Steps
 

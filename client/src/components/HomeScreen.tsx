@@ -15,6 +15,8 @@ export default function HomeScreen({ user, stories, onNavigate, onRead }: HomeSc
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
+  const displayStories = stories.length > 0 ? stories : PLACEHOLDER_STORIES;
+
   return (
     <div className="p-6 space-y-8 pb-28">
       <header className="flex items-center justify-between pt-4">
@@ -26,8 +28,8 @@ export default function HomeScreen({ user, stories, onNavigate, onRead }: HomeSc
         )}
       </header>
 
-      {/* Hero CTA */}
-      <section onClick={() => onNavigate('settings')} className="bg-gradient-to-br from-yellow-500 to-primary rounded-[2.5rem] p-8 shadow-xl shadow-primary/20 relative overflow-hidden cursor-pointer group">
+      {/* Hero CTA — using button for keyboard accessibility */}
+      <button type="button" onClick={() => onNavigate('settings')} aria-label="Open story settings" className="w-full bg-gradient-to-br from-yellow-500 to-primary rounded-[2.5rem] p-8 shadow-xl shadow-primary/20 relative overflow-hidden cursor-pointer group text-left">
         <Mic size={120} className="absolute -right-4 -top-4 opacity-10 text-white" />
         <div className="relative z-10 flex items-center justify-between">
           <div className="space-y-3">
@@ -41,17 +43,17 @@ export default function HomeScreen({ user, stories, onNavigate, onRead }: HomeSc
             <ChevronRight size={32} className="text-white" />
           </div>
         </div>
-      </section>
+      </button>
 
       {/* Genres */}
       <section>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-extrabold">My Genres</h3>
-          <button className="text-sm font-semibold text-slate-500">See all</button>
+          <button type="button" className="text-sm font-semibold text-slate-500">See all</button>
         </div>
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
           {['All', 'Adventure', 'Fantasy', 'Mystery', 'Animals'].map((genre, i) => (
-            <button key={genre} className={`px-6 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all ${i === 0 ? 'bg-primary text-slate-900 shadow-md' : 'bg-slate-800 text-slate-400'}`}>
+            <button type="button" key={genre} className={`px-6 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all ${i === 0 ? 'bg-primary text-slate-900 shadow-md' : 'bg-slate-800 text-slate-400'}`}>
               {genre}
             </button>
           ))}
@@ -62,8 +64,9 @@ export default function HomeScreen({ user, stories, onNavigate, onRead }: HomeSc
       <section>
         <h3 className="text-lg font-extrabold mb-4">Library</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {(stories.length > 0 ? stories : PLACEHOLDER_STORIES).map(story => (
+          {displayStories.map(story => (
             <button
+              type="button"
               key={story.id}
               onClick={onRead}
               className="rounded-3xl p-5 aspect-[3/4.2] relative overflow-hidden group shadow-md text-left w-full bg-slate-800"

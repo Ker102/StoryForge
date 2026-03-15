@@ -16,6 +16,12 @@ export default function LibraryScreen({ stories, onRead }: LibraryScreenProps) {
     return true;
   });
 
+  const emptyMessage = activeTab === 'All Stories'
+    ? 'No stories yet. Create your first one!'
+    : activeTab === 'Finished'
+      ? 'No finished stories yet. Keep reading!'
+      : 'No stories in progress.';
+
   return (
     <div className="min-h-screen bg-background-dark pb-28">
       <header className="sticky top-0 z-10 bg-background-dark/95 backdrop-blur-lg px-6 py-5 border-b border-white/5 flex items-center justify-between">
@@ -24,6 +30,7 @@ export default function LibraryScreen({ stories, onRead }: LibraryScreenProps) {
       <div className="flex border-b border-white/5 justify-center gap-8">
         {['All Stories', 'In Progress', 'Finished'].map(tab => (
           <button
+            type="button"
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`pb-3 pt-4 text-sm font-bold transition-all ${activeTab === tab ? 'text-primary border-b-2 border-primary' : 'text-slate-500'}`}
@@ -35,11 +42,12 @@ export default function LibraryScreen({ stories, onRead }: LibraryScreenProps) {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4 pb-24">
         {filteredStories.length === 0 ? (
           <div className="col-span-full text-center py-20">
-            <p className="text-slate-500 text-lg">No stories yet. Create your first one!</p>
+            <p className="text-slate-500 text-lg">{emptyMessage}</p>
           </div>
         ) : (
           filteredStories.map(story => (
             <button
+              type="button"
               key={story.id}
               onClick={onRead}
               className="flex flex-col gap-3 group text-left w-full"

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, PlayCircle, Volume2, FileText, Share2, Wand2, Settings as SettingsIcon } from 'lucide-react';
 import type { GeneratedPage } from '../App';
 import type { StorySession } from '../lib/websocket';
@@ -20,6 +20,16 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
   const hasPages = pages.length > 0;
   const page = hasPages ? pages[currentPage] : null;
 
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
   const handlePlayAudio = () => {
     if (!page?.narration_audio_base64) return;
 
@@ -34,11 +44,11 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
       const audioUrl = `data:audio/mp3;base64,${page.narration_audio_base64}`;
       if (audioRef.current) {
         audioRef.current.src = audioUrl;
-        audioRef.current.play();
+        audioRef.current.play().catch(() => setIsPlaying(false));
       } else {
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
-        audio.play();
+        audio.play().catch(() => setIsPlaying(false));
         audio.onended = () => setIsPlaying(false);
       }
     } catch (err) {
@@ -51,7 +61,7 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
     <div className="relative flex min-h-screen w-full flex-col bg-background-dark text-slate-100 overflow-x-hidden">
       {/* Header */}
       <header className="flex items-center bg-background-dark/80 backdrop-blur-md p-4 border-b border-white/5 sticky top-0 z-10">
-        <button onClick={onBack} className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+        <button type="button" onClick={onBack} aria-label="Back" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
           <ArrowLeft size={20} />
         </button>
         <div className="flex-1 px-4">
@@ -59,7 +69,9 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
           <p className="text-[10px] text-primary font-bold uppercase tracking-widest">{style}</p>
         </div>
         <button
+          type="button"
           onClick={handlePlayAudio}
+          aria-label={isPlaying ? 'Stop narration' : 'Play narration'}
           className={`flex size-10 items-center justify-center rounded-full shadow-lg transition-all ${isPlaying ? 'bg-red-500 text-white animate-pulse' : 'bg-primary text-black shadow-primary/20 hover:scale-105'}`}
         >
           {isPlaying ? <Volume2 size={20} /> : <PlayCircle size={20} />}
@@ -79,19 +91,25 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
                   alt="Story illustration"
                   src={`data:image/png;base64,${page.image_base64}`}
                 />
-                {/* Nav overlays */}
-                <div
+                {/* Nav overlays — using buttons for keyboard accessibility */}
+                <button
+                  type="button"
                   onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
-                  className="absolute inset-y-0 left-0 w-16 flex items-center justify-center z-20 cursor-pointer hover:bg-white/5 transition-colors"
+                  disabled={currentPage === 0}
+                  aria-label="Previous page"
+                  className="absolute inset-y-0 left-0 w-16 flex items-center justify-center z-20 cursor-pointer hover:bg-white/5 transition-colors bg-transparent border-none"
                 >
                   <ChevronLeft className={currentPage === 0 ? "text-white/10" : "text-white/50"} size={32} />
-                </div>
-                <div
+                </button>
+                <button
+                  type="button"
                   onClick={() => setCurrentPage(p => Math.min(pages.length - 1, p + 1))}
-                  className="absolute inset-y-0 right-0 w-16 flex items-center justify-center z-20 cursor-pointer hover:bg-white/5 transition-colors"
+                  disabled={currentPage === pages.length - 1}
+                  aria-label="Next page"
+                  className="absolute inset-y-0 right-0 w-16 flex items-center justify-center z-20 cursor-pointer hover:bg-white/5 transition-colors bg-transparent border-none"
                 >
                   <ChevronRight className={currentPage === pages.length - 1 ? "text-white/10" : "text-white/50"} size={32} />
-                </div>
+                </button>
               </div>
             </div>
           </div>
@@ -118,7 +136,7 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
             ) : (
               <div className="text-center py-20">
                 <p className="text-slate-500 text-lg">No pages generated yet.</p>
-                <button onClick={onNewStory} className="mt-4 px-6 py-3 bg-primary text-slate-900 rounded-xl font-bold">
+                <button type="button" onClick={onNewStory} className="mt-4 px-6 py-3 bg-primary text-slate-900 rounded-xl font-bold">
                   Create a Story
                 </button>
               </div>
@@ -130,6 +148,7 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
         {page?.narration_audio_base64 && (
           <div className="px-6 py-4 flex justify-center">
             <button
+              type="button"
               onClick={handlePlayAudio}
               className={`flex items-center gap-3 px-6 py-3 rounded-full font-bold shadow-xl transition-all active:scale-95 ${isPlaying ? 'bg-red-500 text-white animate-pulse' : 'bg-primary text-black shadow-primary/30 hover:scale-105'}`}
             >
@@ -143,14 +162,14 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
       {/* Bottom Toolbar */}
       <nav className="border-t border-white/5 bg-background-dark px-4 pb-8 pt-3 sticky bottom-0 z-20">
         <div className="flex justify-around items-center max-w-lg mx-auto">
-          <button className="flex flex-col items-center gap-1 group">
+          <button type="button" aria-label="Export PDF" className="flex flex-col items-center gap-1 group">
             <div className="flex h-10 w-10 items-center justify-center rounded-full group-hover:bg-primary/10 text-white/40 group-hover:text-primary transition-colors">
               <FileText size={20} />
             </div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40 group-hover:text-primary">PDF</p>
           </button>
 
-          <button className="flex flex-col items-center gap-1 group">
+          <button type="button" aria-label="Share story" className="flex flex-col items-center gap-1 group">
             <div className="flex h-10 w-10 items-center justify-center rounded-full group-hover:bg-primary/10 text-white/40 group-hover:text-primary transition-colors">
               <Share2 size={20} />
             </div>
@@ -159,7 +178,7 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
 
           <div className="h-8 w-[1px] bg-primary/20 mx-2" />
 
-          <button onClick={onNewStory} className="flex flex-col items-center gap-1 group">
+          <button type="button" onClick={onNewStory} className="flex flex-col items-center gap-1 group">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-black shadow-lg shadow-primary/20 hover:scale-110 transition-transform">
               <Wand2 size={24} />
             </div>
@@ -168,7 +187,7 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
 
           <div className="h-8 w-[1px] bg-primary/20 mx-2" />
 
-          <button className="flex flex-col items-center gap-1 group">
+          <button type="button" aria-label="Display settings" className="flex flex-col items-center gap-1 group">
             <div className="flex h-10 w-10 items-center justify-center rounded-full group-hover:bg-primary/10 text-white/40 group-hover:text-primary transition-colors">
               <SettingsIcon size={20} />
             </div>
@@ -176,7 +195,9 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
           </button>
 
           <button
+            type="button"
             onClick={handlePlayAudio}
+            aria-label={isPlaying ? 'Stop narration' : 'Read aloud'}
             className={`flex flex-col items-center gap-1 group ${isPlaying ? 'text-red-500' : ''}`}
           >
             <div className={`flex h-10 w-10 items-center justify-center rounded-full group-hover:bg-primary/10 transition-colors ${isPlaying ? 'text-red-500' : 'text-white/40 group-hover:text-primary'}`}>

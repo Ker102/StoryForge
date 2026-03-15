@@ -38,7 +38,7 @@ export default function Onboarding({ onFinish }: OnboardingProps) {
   return (
     <div className="min-h-screen flex flex-col bg-background-dark">
       <header className="flex justify-end p-6">
-        <button onClick={onFinish} className="text-primary font-bold">Skip</button>
+        <button type="button" onClick={onFinish} className="text-primary font-bold">Skip</button>
       </header>
       <main className="flex-1 flex flex-col items-center justify-center px-6">
         <AnimatePresence mode="wait">
@@ -68,11 +68,11 @@ export default function Onboarding({ onFinish }: OnboardingProps) {
             <div key={i} className={`h-1.5 rounded-full transition-all ${i === step ? 'w-8 bg-primary shadow-[0_0_10px_rgba(244,209,37,0.5)]' : 'w-2 bg-slate-800'}`} />
           ))}
         </div>
-        <button onClick={next} className="w-full max-w-md bg-primary text-slate-900 font-bold py-5 rounded-xl text-lg flex items-center justify-center gap-2">
+        <button type="button" onClick={next} className="w-full max-w-md bg-primary text-slate-900 font-bold py-5 rounded-xl text-lg flex items-center justify-center gap-2">
           {step === STEPS.length - 1 ? 'Get Started' : 'Next'}
           <ArrowRight size={20} />
         </button>
-        <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest">Step {step + 1} of 3</p>
+        <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest">Step {step + 1} of {STEPS.length}</p>
       </footer>
     </div>
   );

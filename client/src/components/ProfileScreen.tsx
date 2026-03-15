@@ -15,7 +15,7 @@ export default function ProfileScreen({ user, onNavigate, onLogout }: ProfileScr
   return (
     <div className="min-h-screen bg-background-dark pb-28">
       <header className="flex items-center p-4 sticky top-0 bg-background-dark/95 backdrop-blur-md z-10">
-        <button onClick={() => onNavigate('home')} className="p-2 hover:bg-white/5 rounded-full"><ArrowLeft size={24} /></button>
+        <button type="button" onClick={() => onNavigate('home')} aria-label="Back to home" className="p-2 hover:bg-white/5 rounded-full"><ArrowLeft size={24} /></button>
         <h2 className="text-lg font-bold flex-1 text-center pr-10">Profile</h2>
       </header>
       <section className="flex flex-col items-center py-8">
@@ -30,7 +30,7 @@ export default function ProfileScreen({ user, onNavigate, onLogout }: ProfileScr
               </div>
             )}
           </div>
-          <button className="absolute bottom-1 right-1 bg-primary p-2 rounded-full shadow-lg border-2 border-slate-900">
+          <button type="button" aria-label="Edit profile picture" className="absolute bottom-1 right-1 bg-primary p-2 rounded-full shadow-lg border-2 border-slate-900">
             <Pencil size={14} className="text-slate-900" />
           </button>
         </div>
@@ -52,7 +52,7 @@ export default function ProfileScreen({ user, onNavigate, onLogout }: ProfileScr
               { icon: <SettingsIcon size={20} />, label: 'Preferences' },
               { icon: <Cloud size={20} />, label: 'Notifications', badge: true },
             ].map(item => (
-              <button key={item.label} className="w-full flex items-center justify-between p-4 glass-card rounded-xl hover:bg-primary/10 transition-all group">
+              <button type="button" key={item.label} className="w-full flex items-center justify-between p-4 glass-card rounded-xl hover:bg-primary/10 transition-all group">
                 <div className="flex items-center gap-4">
                   <div className="bg-primary/30 p-2.5 rounded-lg group-hover:bg-primary/40 transition-colors text-primary">
                     {item.icon}
@@ -70,14 +70,14 @@ export default function ProfileScreen({ user, onNavigate, onLogout }: ProfileScr
         <div>
           <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 px-2 py-2">Support & Security</h3>
           <div className="space-y-2">
-            <button className="w-full flex items-center justify-between p-4 glass-card rounded-xl hover:bg-primary/10 transition-all group">
+            <button type="button" className="w-full flex items-center justify-between p-4 glass-card rounded-xl hover:bg-primary/10 transition-all group">
               <div className="flex items-center gap-4">
                 <div className="bg-primary/30 p-2.5 rounded-lg text-primary"><SettingsIcon size={20} /></div>
                 <span className="font-semibold">Help Center</span>
               </div>
               <ChevronRight size={20} className="text-slate-500" />
             </button>
-            <button onClick={onLogout} className="w-full flex items-center gap-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 font-bold">
+            <button type="button" onClick={onLogout} className="w-full flex items-center gap-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 font-bold">
               <div className="bg-red-500/20 p-2.5 rounded-lg"><LogOut size={20} /></div>
               <span>Logout</span>
             </button>

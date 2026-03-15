@@ -103,6 +103,12 @@ export default function App() {
   const handleLogout = async () => {
     await signOut();
     setUser(null);
+    setGeneratedPages([]);
+    setStorySession(null);
+    setStoryTitle('');
+    setStatusMessage('');
+    setStoryStyle('');
+    setLibraryStories([]);
     setCurrentPage('auth');
   };
 

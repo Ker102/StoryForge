@@ -46,3 +46,7 @@ Observability pipeline + test suite (new-feature branch)
 ## Next Steps
 
 - [x] Wire audio bidi-streaming via ADK run_live()
+- [x] Merge PR #10 (Observability & Voice) into `main` and resolve UI redesign conflicts
+- [x] Port audio playback queue to redesigned `App.tsx`
+- [x] Create redesigned `SpeakScreen` for voice steering
+- [x] Wire microphone UI into `StoryReader` for live voice steering

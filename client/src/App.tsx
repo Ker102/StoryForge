@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, signOut, type User } from './lib/firebase';
 import { connectToStory, fetchStories, type StorySession, type PageUpdate } from './lib/websocket';
@@ -12,6 +12,7 @@ import LoadingScreen from './components/LoadingScreen';
 import StoryReader from './components/StoryReader';
 import ProfileScreen from './components/ProfileScreen';
 import BottomNav from './components/BottomNav';
+import SpeakScreen from './components/SpeakScreen';
 
 export interface StoryData {
   id: string;
@@ -42,6 +43,46 @@ export default function App() {
   const [storyTitle, setStoryTitle] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [storyStyle, setStoryStyle] = useState('');
+
+  // Audio Playback
+  const playQueueRef = useRef<{buffer: ArrayBuffer}[]>([]);
+  const isPlayingRef = useRef(false);
+  const playContextRef = useRef<AudioContext | null>(null);
+
+  const processAudioQueue = async () => {
+    if (isPlayingRef.current || playQueueRef.current.length === 0) return;
+    isPlayingRef.current = true;
+
+    if (!playContextRef.current) {
+      playContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate: 24000,
+      });
+    }
+
+    try {
+      const { buffer } = playQueueRef.current.shift()!;
+      const pcm16 = new Int16Array(buffer);
+      const audioBuffer = playContextRef.current.createBuffer(1, pcm16.length, 24000);
+      const channelData = audioBuffer.getChannelData(0);
+      for (let i = 0; i < pcm16.length; i++) {
+        channelData[i] = pcm16[i] / 32768.0;
+      }
+
+      const source = playContextRef.current.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(playContextRef.current.destination);
+      
+      source.onended = () => {
+        isPlayingRef.current = false;
+        processAudioQueue();
+      };
+      source.start();
+    } catch (err) {
+      console.error("Playback error", err);
+      isPlayingRef.current = false;
+      processAudioQueue();
+    }
+  };
 
   // Library
   const [libraryStories, setLibraryStories] = useState<StoryData[]>([]);
@@ -85,6 +126,10 @@ export default function App() {
           onAgentText: (text) => {
             if (!storyTitle && text.length > 10) setStoryTitle(text.slice(0, 60));
           },
+          onAudioData: (buffer) => {
+            playQueueRef.current.push({ buffer: buffer as ArrayBuffer });
+            processAudioQueue();
+          },
           onStatus: (msg) => setStatusMessage(msg),
           onError: (msg) => setStatusMessage(`Error: ${msg}`),
           onClose: () => {
@@ -99,6 +144,13 @@ export default function App() {
       setStatusMessage('Connection failed. Please try again.');
     }
   }, []);
+
+  const handleTextSteer = useCallback((text: string) => {
+    if (storySession) {
+      storySession.sendText(text);
+      setCurrentPage('loading');
+    }
+  }, [storySession]);
 
   const handleLogout = async () => {
     await signOut();
@@ -127,7 +179,9 @@ export default function App() {
       case 'loading':
         return <LoadingScreen status={statusMessage} pages={generatedPages} onComplete={() => setCurrentPage('reader')} />;
       case 'reader':
-        return <StoryReader pages={generatedPages} title={storyTitle} style={storyStyle} session={storySession} onBack={() => setCurrentPage('home')} onNewStory={() => setCurrentPage('settings')} />;
+        return <StoryReader pages={generatedPages} title={storyTitle} style={storyStyle} session={storySession} onBack={() => setCurrentPage('home')} onNewStory={() => setCurrentPage('settings')} onTextSteer={handleTextSteer} onSpeakSteer={() => setCurrentPage('speak')} />;
+      case 'speak':
+        return <SpeakScreen session={storySession} onClose={() => setCurrentPage('reader')} onSubmit={() => setCurrentPage('loading')} />;
       case 'profile':
         return <ProfileScreen user={user} onNavigate={setCurrentPage} onLogout={handleLogout} />;
       default:

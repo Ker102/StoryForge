@@ -167,7 +167,7 @@ async def story_websocket(websocket: WebSocket):
             story state), create a fresh ADK session, and inject a context
             restoration message so the agent remembers the conversation.
             """
-            nonlocal audio_gate_open, live_queue, quill_agent, runner, adk_session
+            nonlocal audio_gate_open, live_queue
             max_retries = 10
             retry_count = 0
 
@@ -233,40 +233,14 @@ async def story_websocket(websocket: WebSocket):
 
                     if is_live_api_error and retry_count < max_retries:
                         logger.warning(
-                            "Live API error — rebuilding session (%d/%d): %s",
+                            "Live API error — retrying with fresh queue (%d/%d): %s",
                             retry_count, max_retries, e,
                         )
-                        # Re-open audio gate
+                        # Re-open audio gate and create fresh queue
+                        # Keep SAME agent, runner, and adk_session to preserve context
                         audio_gate_open = True
-
-                        # Rebuild agent with CURRENT story state baked into instruction
-                        quill_agent = build_quill_agent(story_state)
-                        runner = Runner(
-                            agent=quill_agent,
-                            app_name="storyforge",
-                            session_service=_session_service,
-                        )
-
-                        # Create fresh ADK session (old one is invalidated)
-                        adk_session = await _session_service.create_session(
-                            app_name="storyforge",
-                            user_id=session_id,
-                            state={"story_state": story_state},
-                        )
-
-                        # Create fresh queue and inject context restoration
                         live_queue = LiveRequestQueue()
-                        context_msg = (
-                            f"[System: session reconnected. "
-                            f"Story has {len(story_state.pages)} page(s) so far. "
-                            f"Continue the conversation naturally.]"
-                        )
-                        live_queue.send_content(types.Content(
-                            role="user",
-                            parts=[types.Part(text=context_msg)],
-                        ))
-
-                        await asyncio.sleep(1.5)  # brief pause before retry
+                        await asyncio.sleep(2)  # brief pause before retry
                         continue
                     else:
                         tb_str = tb_module.format_exc()

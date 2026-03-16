@@ -9,9 +9,16 @@ import { getIdToken } from "./firebase";
 const wsScheme = window.location.protocol === "https:" ? "wss:" : "ws:";
 const httpScheme = window.location.protocol === "https:" ? "https:" : "http:";
 
+// In production (Cloud Run) backend is on the same host; in dev it's on :8001
 const WS_BASE =
   import.meta.env.VITE_WS_URL ||
-  `${wsScheme}//${window.location.hostname}:8001`;
+  `${wsScheme}//${window.location.hostname}${window.location.port === "5000" ? ":8001" : ""}`;
+
+// Base URL for REST API calls (used by SpeakScreen etc.)
+export const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  `${httpScheme}//${window.location.hostname}${window.location.port === "5000" ? ":8001" : ""}`;
+
 
 export interface StoryConfig {
   style: string;

@@ -47,3 +47,18 @@ app.include_router(obs_router, prefix="/observability", tags=["observability"])
 async def health_check():
     """Health check endpoint."""
     return {"status": "ok", "service": "storyforge-backend"}
+
+
+# Serve the built frontend in production (when STORYFORGE_STATIC_DIR is set)
+_static_dir = os.environ.get("STORYFORGE_STATIC_DIR")
+if _static_dir and os.path.isdir(_static_dir):
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """Serve SPA — return index.html for all non-API routes."""
+        file_path = os.path.join(_static_dir, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(_static_dir, "index.html"))

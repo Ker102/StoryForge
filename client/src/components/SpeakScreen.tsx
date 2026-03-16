@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, RefreshCw, Check, BookOpen, ChevronRight, ChevronLeft, Sparkles, ImagePlus, Volume2 } from 'lucide-react';
 import type { StorySession } from '../lib/websocket';
+import { API_BASE } from '../lib/websocket';
 import type { GeneratedPage } from '../App';
 
 interface SpeakScreenProps {
@@ -347,7 +348,7 @@ export default function SpeakScreen({ session, pages, agentText, audioLevel, onC
                     try {
                       const { getAuth } = await import('firebase/auth');
                       const token = await getAuth().currentUser?.getIdToken();
-                      const res = await fetch(`http://localhost:8001/api/stories/${storyId}/generate-images`, {
+                      const res = await fetch(`${API_BASE}/api/stories/${storyId}/generate-images`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${token}` },
                       });
@@ -372,7 +373,7 @@ export default function SpeakScreen({ session, pages, agentText, audioLevel, onC
                     try {
                       const { getAuth } = await import('firebase/auth');
                       const token = await getAuth().currentUser?.getIdToken();
-                      const res = await fetch(`http://localhost:8001/api/stories/${storyId}/generate-narration`, {
+                      const res = await fetch(`${API_BASE}/api/stories/${storyId}/generate-narration`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${token}` },
                       });

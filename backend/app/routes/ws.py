@@ -146,18 +146,15 @@ async def story_websocket(websocket: WebSocket):
         live_queue = LiveRequestQueue()
 
         # RunConfig for native-audio model: BIDI streaming with audio responses
-        # context_window_compression: auto-trim old context when token budget fills
-        # NOTE: session_resumption and tool_thread_pool_config removed —
+        # NOTE: context_window_compression does NOT work with run_live —
+        #       it only applies to run_async text sessions.
+        # NOTE: session_resumption and tool_thread_pool_config also removed —
         #       they caused the native-audio model to stop processing audio input.
         run_config = RunConfig(
             streaming_mode=StreamingMode.BIDI,
             response_modalities=["AUDIO"],
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
-            context_window_compression=types.ContextWindowCompressionConfig(
-                trigger_tokens=120_000,
-                sliding_window=types.SlidingWindow(target_tokens=60_000),
-            ),
             save_input_blobs_as_artifacts=False,
             save_live_audio=False,
         )
@@ -166,11 +163,12 @@ async def story_websocket(websocket: WebSocket):
             """Background task: runs the live bidi-streaming agent loop.
 
             Wraps run_live in a retry loop — the Live API may disconnect with
-            a 1008 error when audio races with tool execution. On error we
-            recreate the LiveRequestQueue and restart.
+            1008/1011 errors. On error we rebuild the agent (with updated
+            story state), create a fresh ADK session, and inject a context
+            restoration message so the agent remembers the conversation.
             """
-            nonlocal audio_gate_open, live_queue
-            max_retries = 5
+            nonlocal audio_gate_open, live_queue, quill_agent, runner, adk_session
+            max_retries = 10
             retry_count = 0
 
             while retry_count < max_retries:
@@ -228,17 +226,47 @@ async def story_websocket(websocket: WebSocket):
                 except Exception as e:
                     retry_count += 1
                     error_str = str(e)
-                    is_1008 = "1008" in error_str
+                    # Catch any Live API WebSocket error (1008, 1011, etc.)
+                    is_live_api_error = any(
+                        code in error_str for code in ("1008", "1011", "1006", "1001")
+                    ) or "APIError" in type(e).__name__
 
-                    if is_1008 and retry_count < max_retries:
+                    if is_live_api_error and retry_count < max_retries:
                         logger.warning(
-                            "1008 error (audio/tool race) — retrying (%d/%d): %s",
+                            "Live API error — rebuilding session (%d/%d): %s",
                             retry_count, max_retries, e,
                         )
-                        # Re-open audio gate and create fresh queue
+                        # Re-open audio gate
                         audio_gate_open = True
+
+                        # Rebuild agent with CURRENT story state baked into instruction
+                        quill_agent = build_quill_agent(story_state)
+                        runner = Runner(
+                            agent=quill_agent,
+                            app_name="storyforge",
+                            session_service=_session_service,
+                        )
+
+                        # Create fresh ADK session (old one is invalidated)
+                        adk_session = await _session_service.create_session(
+                            app_name="storyforge",
+                            user_id=session_id,
+                            state={"story_state": story_state},
+                        )
+
+                        # Create fresh queue and inject context restoration
                         live_queue = LiveRequestQueue()
-                        await asyncio.sleep(1)  # brief pause before retry
+                        context_msg = (
+                            f"[System: session reconnected. "
+                            f"Story has {len(story_state.pages)} page(s) so far. "
+                            f"Continue the conversation naturally.]"
+                        )
+                        live_queue.send_content(types.Content(
+                            role="user",
+                            parts=[types.Part(text=context_msg)],
+                        ))
+
+                        await asyncio.sleep(1.5)  # brief pause before retry
                         continue
                     else:
                         tb_str = tb_module.format_exc()

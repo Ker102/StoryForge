@@ -62,6 +62,11 @@ if _static_dir and os.path.isdir(_static_dir):
     async def serve_spa(full_path: str):
         """Serve SPA — return index.html for all non-API routes."""
         target = (_static_root / full_path).resolve()
-        if target.is_file() and target.is_relative_to(_static_root):
-            return FileResponse(str(target))
+        static_root_str = str(_static_root)
+        target_str = str(target)
+        if (
+            target.is_file()
+            and (target_str == static_root_str or target_str.startswith(static_root_str + os.sep))
+        ):
+            return FileResponse(target_str)
         return FileResponse(str(_static_root / "index.html"))

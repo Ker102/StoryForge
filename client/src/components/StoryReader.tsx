@@ -59,6 +59,58 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
     }
   };
 
+  const handleDownloadPDF = () => {
+    if (!hasPages) return;
+    // Build a printable HTML page with all story pages
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${title || 'StoryForge'}</title>
+<style>
+  body { font-family: Georgia, serif; max-width: 700px; margin: 40px auto; color: #222; line-height: 1.7; }
+  h1 { font-size: 2rem; text-align: center; margin-bottom: 2rem; }
+  .page { margin-bottom: 3rem; page-break-inside: avoid; }
+  .page-num { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin-bottom: 0.5rem; }
+  .page-text { font-size: 1.1rem; }
+  .page-img { width: 100%; max-height: 400px; object-fit: cover; border-radius: 12px; margin-bottom: 1rem; }
+  @media print { body { margin: 20px; } }
+</style>
+</head>
+<body>
+<h1>${title || 'My StoryForge Story'}</h1>
+${pages.map((p, i) => `
+<div class="page">
+  ${p.image_base64 ? `<img class="page-img" src="data:image/png;base64,${p.image_base64}" alt="Page ${i + 1} illustration" />` : ''}
+  <div class="page-num">Page ${i + 1}</div>
+  <div class="page-text">${p.text}</div>
+</div>`).join('')}
+</body>
+</html>`;
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      setTimeout(() => win.print(), 500);
+    }
+  };
+
+  const handleShare = async () => {
+    const storyText = pages.map((p, i) => `Page ${i + 1}\n${p.text}`).join('\n\n');
+    const shareData = { title: title || 'My StoryForge Story', text: storyText };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareData.title}\n\n${shareData.text}`);
+        alert('Story copied to clipboard!');
+      }
+    } catch (err) {
+      // User cancelled share — ignore
+    }
+  };
+
   return (
     <div className="relative flex min-h-screen w-full max-w-6xl mx-auto flex-col bg-background-dark text-slate-100 overflow-x-hidden">
       {/* Header */}
@@ -193,14 +245,14 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
       {/* Bottom Toolbar */}
       <nav className="border-t border-white/5 bg-background-dark px-4 pb-8 pt-3 sticky bottom-0 z-20">
         <div className="flex justify-around items-center max-w-lg mx-auto">
-          <button type="button" aria-label="Export PDF" className="flex flex-col items-center gap-1 group">
+          <button type="button" onClick={handleDownloadPDF} disabled={!hasPages} aria-label="Export PDF" className="flex flex-col items-center gap-1 group disabled:opacity-30">
             <div className="flex h-10 w-10 items-center justify-center rounded-full group-hover:bg-primary/10 text-white/40 group-hover:text-primary transition-colors">
               <FileText size={20} />
             </div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40 group-hover:text-primary">PDF</p>
           </button>
 
-          <button type="button" aria-label="Share story" className="flex flex-col items-center gap-1 group">
+          <button type="button" onClick={handleShare} disabled={!hasPages} aria-label="Share story" className="flex flex-col items-center gap-1 group disabled:opacity-30">
             <div className="flex h-10 w-10 items-center justify-center rounded-full group-hover:bg-primary/10 text-white/40 group-hover:text-primary transition-colors">
               <Share2 size={20} />
             </div>

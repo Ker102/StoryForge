@@ -371,6 +371,13 @@ async def story_websocket(websocket: WebSocket):
 
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected (session=%s)", session_id)
+    except RuntimeError as e:
+        # Starlette raises RuntimeError("Cannot call 'receive' once a disconnect message
+        # has been received.") — treat it as a normal client disconnect
+        if "disconnect" in str(e).lower():
+            logger.info("WebSocket client disconnected (session=%s)", session_id)
+        else:
+            logger.error("WebSocket runtime error: %s", e, exc_info=True)
     except Exception as e:
         logger.error("WebSocket error: %s", e, exc_info=True)
         with contextlib.suppress(Exception):

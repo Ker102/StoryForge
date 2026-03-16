@@ -5,7 +5,9 @@ Provides lazy-initialized access to Firebase Auth, Firestore, and Storage.
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import threading
 from pathlib import Path
 
@@ -21,27 +23,55 @@ _app_lock = threading.Lock()
 
 
 def _get_app() -> firebase_admin.App:
-    """Lazily initialise the Firebase Admin SDK."""
+    """Lazily initialise the Firebase Admin SDK.
+
+    Tries three credential sources in order:
+    1. FIREBASE_SERVICE_ACCOUNT_KEY env var (JSON string)
+    2. File path from settings.firebase_service_account_path
+    3. Application Default Credentials (for Cloud Run with service account)
+    """
     global _app
     if _app is not None:
         return _app
 
     with _app_lock:
-        # Double-check after acquiring lock
         if _app is not None:
             return _app
 
         settings = get_settings()
-        cred_path = Path(settings.firebase_service_account_path)
+        cred = None
 
-        if not cred_path.exists():
-            logger.error(
-                "Firebase service account key not found at %s",
-                cred_path,
-            )
-            raise FileNotFoundError(f"Service account key not found: {cred_path}")
+        # Method 1: JSON env var (preferred for Cloud Run)
+        key_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY", "")
+        if key_json and key_json.strip().startswith("{"):
+            try:
+                key_data = json.loads(key_json)
+                cred = credentials.Certificate(key_data)
+                logger.info("Firebase: using FIREBASE_SERVICE_ACCOUNT_KEY env var")
+            except (json.JSONDecodeError, ValueError) as exc:
+                logger.warning("Firebase: FIREBASE_SERVICE_ACCOUNT_KEY is invalid JSON: %s", exc)
 
-        cred = credentials.Certificate(str(cred_path))
+        # Method 2: File path
+        if cred is None:
+            cred_path = Path(settings.firebase_service_account_path)
+            if cred_path.exists():
+                cred = credentials.Certificate(str(cred_path))
+                logger.info("Firebase: using key file at %s", cred_path)
+            else:
+                logger.warning("Firebase: key file not found at %s", cred_path)
+
+        # Method 3: Application Default Credentials
+        if cred is None:
+            try:
+                cred = credentials.ApplicationDefault()
+                logger.info("Firebase: using Application Default Credentials")
+            except Exception:
+                logger.error("Firebase: no credentials found (no env var, no file, no ADC)")
+                raise FileNotFoundError(
+                    "No Firebase credentials: set FIREBASE_SERVICE_ACCOUNT_KEY env var "
+                    "or provide serviceAccountKey.json"
+                )
+
         _app = firebase_admin.initialize_app(
             cred,
             {

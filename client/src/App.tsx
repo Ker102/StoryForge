@@ -46,6 +46,7 @@ export default function App() {
   const [statusMessage, setStatusMessage] = useState('');
   const [storyStyle, setStoryStyle] = useState('');
   const [agentText, setAgentText] = useState('');
+  const [audioLevel, setAudioLevel] = useState(0);
 
   // Audio Playback — gapless scheduling for smooth streaming
   const playQueueRef = useRef<{buffer: ArrayBuffer}[]>([]);
@@ -136,6 +137,7 @@ export default function App() {
             playQueueRef.current.push({ buffer: buffer as ArrayBuffer });
             processAudioQueue();
           },
+          onAudioLevel: (level) => setAudioLevel(level),
           onStatus: (msg) => setStatusMessage(msg),
           onError: (msg) => setStatusMessage(`Error: ${msg}`),
           onClose: () => {
@@ -188,7 +190,7 @@ export default function App() {
       case 'reader':
         return <StoryReader pages={generatedPages} title={storyTitle} style={storyStyle} session={storySession} onBack={() => setCurrentPage('home')} onNewStory={() => setCurrentPage('settings')} onTextSteer={handleTextSteer} onSpeakSteer={() => setCurrentPage('speak')} />;
       case 'speak':
-        return <SpeakScreen session={storySession} pages={generatedPages} agentText={agentText} onClose={() => setCurrentPage(generatedPages.length > 0 ? 'reader' : 'home')} onSubmit={() => setCurrentPage('loading')} />;
+        return <SpeakScreen session={storySession} pages={generatedPages} agentText={agentText} audioLevel={audioLevel} onClose={() => setCurrentPage(generatedPages.length > 0 ? 'reader' : 'home')} onSubmit={() => setCurrentPage('reader')} />;
       case 'profile':
         return <ProfileScreen user={user} onNavigate={setCurrentPage} onLogout={handleLogout} />;
       default:

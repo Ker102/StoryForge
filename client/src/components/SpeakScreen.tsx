@@ -8,11 +8,12 @@ interface SpeakScreenProps {
   session: StorySession | null;
   pages: GeneratedPage[];
   agentText: string;
+  audioLevel: number;
   onClose: () => void;
   onSubmit: () => void;
 }
 
-export default function SpeakScreen({ session, pages, agentText, onClose, onSubmit }: SpeakScreenProps) {
+export default function SpeakScreen({ session, pages, agentText, audioLevel, onClose, onSubmit }: SpeakScreenProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const pagesEndRef = useRef<HTMLDivElement>(null);
@@ -127,45 +128,60 @@ export default function SpeakScreen({ session, pages, agentText, onClose, onSubm
           <div className="relative w-36 h-36 flex items-center justify-center">
             {isRecording && (
               <>
+                {/* Audio-reactive glow rings */}
                 <motion.div
-                  className="absolute inset-0 border border-yellow-400/20 rounded-full"
-                  animate={{ scale: [1, 1.5], opacity: [0.4, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+                  className="absolute inset-0 border-2 border-yellow-400/30 rounded-full"
+                  animate={{ 
+                    scale: 1 + audioLevel * 0.8,
+                    opacity: 0.2 + audioLevel * 0.5,
+                    borderColor: audioLevel > 0.3 ? 'rgba(250, 204, 21, 0.5)' : 'rgba(250, 204, 21, 0.2)',
+                  }}
+                  transition={{ duration: 0.1, ease: "easeOut" }}
                 />
                 <motion.div
-                  className="absolute inset-2 border border-yellow-400/30 rounded-full"
-                  animate={{ scale: [1, 1.4], opacity: [0.5, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.3 }}
+                  className="absolute inset-3 border border-yellow-400/20 rounded-full"
+                  animate={{ 
+                    scale: 1 + audioLevel * 0.5,
+                    opacity: 0.15 + audioLevel * 0.4,
+                  }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
                 />
                 <motion.div
-                  className="absolute inset-4 border border-yellow-400/40 rounded-full"
-                  animate={{ scale: [1, 1.3], opacity: [0.6, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.6 }}
+                  className="absolute inset-6 border border-yellow-400/15 rounded-full"
+                  animate={{ 
+                    scale: 1 + audioLevel * 0.3,
+                    opacity: 0.1 + audioLevel * 0.3,
+                  }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
                 />
               </>
             )}
-            <div className="absolute inset-8 bg-yellow-500/15 rounded-full blur-md" />
+            <motion.div
+              className="absolute inset-8 bg-yellow-500/15 rounded-full blur-md"
+              animate={{ opacity: 0.15 + audioLevel * 0.6 }}
+              transition={{ duration: 0.1 }}
+            />
             <div className="relative z-10 text-5xl">🎙️</div>
           </div>
 
-          {/* Waveform Visualization */}
+          {/* Audio-reactive Waveform */}
           <div className="flex items-center gap-1.5 h-14">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <motion.div
-                key={i}
-                className="w-1.5 bg-gradient-to-t from-yellow-600/60 to-yellow-300/80 rounded-full"
-                animate={isRecording ? {
-                  height: [`${20 + Math.random() * 20}%`, `${50 + Math.random() * 50}%`, `${20 + Math.random() * 20}%`]
-                } : { height: '20%' }}
-                transition={{
-                  duration: 0.6 + Math.random() * 0.4,
-                  repeat: isRecording ? Infinity : 0,
-                  ease: "easeInOut",
-                  delay: i * 0.05
-                }}
-                style={{ minHeight: 8, maxHeight: 56 }}
-              />
-            ))}
+            {Array.from({ length: 12 }).map((_, i) => {
+              // Each bar gets a slightly different response for natural look
+              const barVariation = 0.6 + (Math.sin(i * 1.3) * 0.2 + 0.2);
+              const barHeight = isRecording
+                ? Math.max(15, Math.min(100, audioLevel * 100 * barVariation + 10))
+                : 15;
+              return (
+                <motion.div
+                  key={i}
+                  className="w-1.5 bg-gradient-to-t from-yellow-600/60 to-yellow-300/80 rounded-full"
+                  animate={{ height: `${barHeight}%` }}
+                  transition={{ duration: 0.08, ease: "easeOut" }}
+                  style={{ minHeight: 8, maxHeight: 56 }}
+                />
+              );
+            })}
           </div>
 
           {/* Agent text / conversation bubble */}

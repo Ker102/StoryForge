@@ -42,6 +42,7 @@ export type MessageHandler = {
   onPageUpdate?: (page: PageUpdate) => void;
   onAgentText?: (text: string) => void;
   onAudioData?: (audioData: ArrayBuffer | Blob) => void;
+  onAudioLevel?: (level: number) => void;
   onStatus?: (message: string) => void;
   onError?: (message: string) => void;
   onClose?: () => void;
@@ -96,6 +97,16 @@ export async function connectToStory(
             if (ws.readyState !== WebSocket.OPEN) return;
             const inputData = e.inputBuffer.getChannelData(0);
             
+            // Compute RMS audio level for mic visualization (0-1)
+            let sumSq = 0;
+            for (let i = 0; i < inputData.length; i++) {
+              sumSq += inputData[i] * inputData[i];
+            }
+            const rms = Math.sqrt(sumSq / inputData.length);
+            // Scale and clamp to 0-1 (typical speech RMS is 0.01-0.15)
+            const level = Math.min(1, rms * 8);
+            handlers.onAudioLevel?.(level);
+
             // Convert Float32 to Int16
             const pcmData = new Int16Array(inputData.length);
             for (let i = 0; i < inputData.length; i++) {

@@ -25,6 +25,8 @@ class WSMessageType(StrEnum):
     EXPORT_READY = "export_ready"  # PDF is ready for download
     SESSION_READY = "session_ready"  # Session initialized successfully
     ERROR = "error"  # Error message
+    TOOL_STARTED = "tool_started"  # Agent is calling a tool (show thinking UI)
+    TOOL_COMPLETED = "tool_completed"  # Tool call finished (hide thinking UI)
 
 
 class WSMessage(BaseModel):

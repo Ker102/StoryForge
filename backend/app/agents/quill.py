@@ -85,32 +85,12 @@ async def generate_story_page(
         user_direction: Clear summary of what the user wants on this page,
             including any characters, events, mood, or specific details.
     """
-    from app.observability import metrics
-
-    metrics.tool_calls_total.inc(labels={"tool": "generate_story_page"})
-
     # Retrieve story_state from ADK session state
     story_state: StoryState = tool_context.state.get("story_state")
     if story_state is None:
-        metrics.errors.inc(labels={"tool": "generate_story_page"})
         return {"status": "error", "message": "No active story session."}
 
     page_number = story_state.current_page + 1
-
-    # Log direction
-    if user_direction:
-        story_state.direction_log.append(
-            Direction(
-                page=page_number,
-                type=DirectionType.STEERING,
-                input=user_direction,
-            )
-        )
-
-    # Capture immutable values for background task
-    style_value = story_state.style.value
-    age_setting = story_state.age_setting
-    ss_key = story_state.session_id
 
     # Spawn heavy pipeline as background task (non-blocking)
     asyncio.create_task(
@@ -118,9 +98,9 @@ async def generate_story_page(
             story_state=story_state,
             page_number=page_number,
             user_direction=user_direction,
-            style_value=style_value,
-            age_setting=age_setting,
-            queue_key=ss_key,
+            style_value=story_state.style.value,
+            age_setting=story_state.age_setting,
+            queue_key=story_state.session_id,
         )
     )
 
@@ -128,10 +108,7 @@ async def generate_story_page(
     return {
         "status": "generating",
         "page_number": page_number,
-        "message": (
-            f"I'm creating page {page_number} now! "
-            "The illustration and text will appear on your screen in a moment."
-        ),
+        "message": f"Creating page {page_number} now. It will appear on screen shortly.",
     }
 
 
@@ -165,11 +142,22 @@ async def _generate_page_background(
     from app.observability import metrics, tracer
     from app.observability.trace import SpanStatus
 
+    metrics.tool_calls_total.inc(labels={"tool": "generate_story_page"})
     span = tracer.start_span(
         "generate_story_page_bg",
         attributes={"user_direction": user_direction[:200] if user_direction else ""},
     )
     _start = time.time()
+
+    # Log direction (moved from sync tool to here)
+    if user_direction:
+        story_state.direction_log.append(
+            Direction(
+                page=page_number,
+                type=DirectionType.STEERING,
+                input=user_direction,
+            )
+        )
 
     try:
         story_writer = _get_story_writer()
@@ -328,19 +316,12 @@ def build_quill_agent(story_state: StoryState) -> Agent:
     story_context = story_state.get_live_summary()
     profile = story_state.age_profile
 
-    # Keep instruction SHORT — every token counts in the Live API context window.
-    instruction = f"""You are Quill, a playful story companion for kids.
-
-RULES:
-- Keep replies to 1-2 SHORT sentences. Be concise.
-- Ask one fun question to guide the story, then LISTEN.
-- Call generate_story_page when the user gives enough detail for a page. Summarize their idea in user_direction.
-- Call finish_story when the user wants to end.
-- Do NOT narrate your actions. Do NOT repeat what you just did.
-- Keep the {profile["label"]} age group in mind.
-
-STORY STATE:
-{story_context}
+    instruction = f"""You are Quill, a playful story companion.
+Keep replies to 1-2 SHORT sentences. Be concise and fun.
+Ask one question to guide the story, then LISTEN.
+Call generate_story_page when the user gives enough detail. Summarize their idea in user_direction.
+Call finish_story when they want to end.
+Age group: {profile["label"]}. Style: {story_state.style.value}. Pages so far: {story_state.current_page}.
 """
 
     from app.config import get_settings

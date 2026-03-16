@@ -13,9 +13,10 @@ interface SpeakScreenProps {
   onClose: () => void;
   onSubmit: () => void;
   storyId?: string;
+  isAgentThinking?: boolean;
 }
 
-export default function SpeakScreen({ session, pages, agentText, audioLevel, onClose, onSubmit, storyId }: SpeakScreenProps) {
+export default function SpeakScreen({ session, pages, agentText, audioLevel, onClose, onSubmit, storyId, isAgentThinking }: SpeakScreenProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [generatingImages, setGeneratingImages] = useState(false);
@@ -206,6 +207,34 @@ export default function SpeakScreen({ session, pages, agentText, audioLevel, onC
                 <p className="text-sm text-yellow-100/80 leading-relaxed font-medium">
                   {agentText}
                 </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Thinking indicator — shows when agent is processing a tool call */}
+          <AnimatePresence>
+            {isAgentThinking && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20"
+              >
+                <motion.div
+                  className="flex gap-1"
+                  animate={{ opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  {[0, 1, 2].map((i) => (
+                    <motion.div
+                      key={i}
+                      className="w-1.5 h-1.5 bg-yellow-400 rounded-full"
+                      animate={{ scale: [0.8, 1.2, 0.8] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.2 }}
+                    />
+                  ))}
+                </motion.div>
+                <span className="text-xs text-yellow-300/80 font-medium">Quill is creating your page...</span>
               </motion.div>
             )}
           </AnimatePresence>

@@ -48,6 +48,7 @@ export default function App() {
   const [agentText, setAgentText] = useState('');
   const [audioLevel, setAudioLevel] = useState(0);
   const [storyId, setStoryId] = useState('');
+  const [isAgentThinking, setIsAgentThinking] = useState(false);
 
   // Audio Playback — gapless scheduling for smooth streaming
   const playQueueRef = useRef<{buffer: ArrayBuffer}[]>([]);
@@ -140,6 +141,7 @@ export default function App() {
             console.log(`[App] Page ${page.page_number} added to state (has_image=${!!page.image_base64})`);
             setGeneratedPages(prev => [...prev, page]);
             setStatusMessage(`Page ${page.page_number} ready!`);
+            setIsAgentThinking(false); // Clear thinking when page arrives
           },
           onAgentText: (text) => {
             setAgentText(text);
@@ -156,6 +158,14 @@ export default function App() {
             if (generatedPages.length > 0) {
               setCurrentPage('reader');
             }
+          },
+          onToolStarted: (tool) => {
+            console.log(`[App] Tool started: ${tool}`);
+            setIsAgentThinking(true);
+          },
+          onToolCompleted: () => {
+            console.log('[App] Tool completed');
+            setIsAgentThinking(false);
           },
         }
       );
@@ -202,7 +212,7 @@ export default function App() {
       case 'reader':
         return <StoryReader pages={generatedPages} title={storyTitle} style={storyStyle} session={storySession} onBack={() => setCurrentPage('home')} onNewStory={() => setCurrentPage('settings')} onTextSteer={handleTextSteer} onSpeakSteer={() => setCurrentPage('speak')} />;
       case 'speak':
-        return <SpeakScreen session={storySession} pages={generatedPages} agentText={agentText} audioLevel={audioLevel} storyId={storyId} onClose={() => setCurrentPage(generatedPages.length > 0 ? 'reader' : 'home')} onSubmit={() => setCurrentPage('reader')} />;
+        return <SpeakScreen session={storySession} pages={generatedPages} agentText={agentText} audioLevel={audioLevel} storyId={storyId} isAgentThinking={isAgentThinking} onClose={() => setCurrentPage(generatedPages.length > 0 ? 'reader' : 'home')} onSubmit={() => setCurrentPage('reader')} />;
       case 'profile':
         return <ProfileScreen user={user} onNavigate={setCurrentPage} onLogout={handleLogout} />;
       default:

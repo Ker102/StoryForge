@@ -53,6 +53,8 @@ export type MessageHandler = {
   onStatus?: (message: string) => void;
   onError?: (message: string) => void;
   onClose?: () => void;
+  onToolStarted?: (tool: string) => void;
+  onToolCompleted?: () => void;
 };
 
 /**
@@ -219,6 +221,14 @@ export async function connectToStory(
               resolved = true;
               reject(new Error(data.message || "Server error"));
             }
+            break;
+
+          case "tool_started":
+            handlers.onToolStarted?.(data.tool || "unknown");
+            break;
+
+          case "tool_completed":
+            handlers.onToolCompleted?.();
             break;
         }
       } catch (e) {

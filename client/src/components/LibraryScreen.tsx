@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import type { StoryData } from '../App';
 
 interface LibraryScreenProps {
@@ -22,8 +23,24 @@ export default function LibraryScreen({ stories, onRead }: LibraryScreenProps) {
       ? 'No finished stories yet. Keep reading!'
       : 'No stories in progress.';
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { staggerChildren: 0.05 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, y: 0, 
+      transition: { type: "spring", stiffness: 100 }
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background-dark pb-28">
+    <div className="min-h-screen bg-background-dark pb-28 max-w-6xl mx-auto w-full">
       <header className="sticky top-0 z-10 bg-background-dark/95 backdrop-blur-lg px-6 py-5 border-b border-white/5 flex items-center justify-between">
         <h1 className="font-serif text-2xl font-bold italic">StoryForge</h1>
       </header>
@@ -39,14 +56,23 @@ export default function LibraryScreen({ stories, onRead }: LibraryScreenProps) {
           </button>
         ))}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4 pb-24">
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        key={activeTab} // re-trigger animation on tab change
+        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4 pb-24"
+      >
         {filteredStories.length === 0 ? (
           <div className="col-span-full text-center py-20">
             <p className="text-slate-500 text-lg">{emptyMessage}</p>
           </div>
         ) : (
           filteredStories.map(story => (
-            <button
+            <motion.button
+              variants={itemVariants}
+              whileHover={{ y: -5, scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="button"
               key={story.id}
               onClick={onRead}
@@ -76,10 +102,10 @@ export default function LibraryScreen({ stories, onRead }: LibraryScreenProps) {
                   {story.is_complete ? 'Finished • 100%' : `Page ${story.current_page} of ${story.page_count}`}
                 </p>
               </div>
-            </button>
+            </motion.button>
           ))
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }

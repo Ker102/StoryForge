@@ -26,7 +26,7 @@ class Settings(BaseSettings):
         return v
 
     # Model configuration
-    live_model: str = "gemini-2.5-flash"
+    live_model: str = "gemini-2.5-flash-native-audio-latest"
     writer_model: str = "gemini-3-flash-preview"
     image_model: str = "imagen-4.0-generate-001"
     fallback_image_model: str = "gemini-2.5-flash-image"
@@ -46,8 +46,9 @@ class Settings(BaseSettings):
     debug: bool = False
 
     model_config = {
-        "env_file": ".env",
+        "env_file": ".env.storyforge",
         "env_file_encoding": "utf-8",
+        "extra": "ignore",  # .env.storyforge has frontend Firebase vars we don't need
     }
 
 

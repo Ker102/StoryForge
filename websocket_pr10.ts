@@ -11,7 +11,7 @@ const httpScheme = window.location.protocol === "https:" ? "https:" : "http:";
 
 const WS_BASE =
   import.meta.env.VITE_WS_URL ||
-  `${wsScheme}//${window.location.hostname}:8001`;
+  `${wsScheme}//${window.location.hostname}:8000`;
 
 export interface StoryConfig {
   style: string;
@@ -42,7 +42,6 @@ export type MessageHandler = {
   onPageUpdate?: (page: PageUpdate) => void;
   onAgentText?: (text: string) => void;
   onAudioData?: (audioData: ArrayBuffer | Blob) => void;
-  onAudioLevel?: (level: number) => void;
   onStatus?: (message: string) => void;
   onError?: (message: string) => void;
   onClose?: () => void;
@@ -97,16 +96,6 @@ export async function connectToStory(
             if (ws.readyState !== WebSocket.OPEN) return;
             const inputData = e.inputBuffer.getChannelData(0);
             
-            // Compute RMS audio level for mic visualization (0-1)
-            let sumSq = 0;
-            for (let i = 0; i < inputData.length; i++) {
-              sumSq += inputData[i] * inputData[i];
-            }
-            const rms = Math.sqrt(sumSq / inputData.length);
-            // Scale and clamp to 0-1 (typical speech RMS is 0.01-0.15)
-            const level = Math.min(1, rms * 8);
-            handlers.onAudioLevel?.(level);
-
             // Convert Float32 to Int16
             const pcmData = new Int16Array(inputData.length);
             for (let i = 0; i < inputData.length; i++) {
@@ -185,9 +174,6 @@ export async function connectToStory(
             break;
 
           case "page_update":
-            console.log(
-              `[WS] page_update received: page=${data.page_number}, has_image=${!!data.image_base64}, text_len=${(data.text || "").length}`
-            );
             handlers.onPageUpdate?.({
               page_number: data.page_number,
               text: data.text,
@@ -258,7 +244,7 @@ export async function fetchStories(): Promise<
 
   const API_BASE =
     import.meta.env.VITE_API_URL ||
-    `${httpScheme}//${window.location.hostname}:8001`;
+    `${httpScheme}//${window.location.hostname}:8000`;
 
   const res = await fetch(`${API_BASE}/api/stories`, {
     headers: { Authorization: `Bearer ${token}` },

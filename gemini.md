@@ -1,7 +1,7 @@
 # StoryForge — Progress Tracker
 
 ## Current Task
-Observability pipeline + test suite (new-feature branch)
+Verify Live Agent context compression fix and sidebar page delivery
 
 ## Progress
 - [x] Backend scaffold (PR #1 on `feature/backend-scaffold`)
@@ -42,7 +42,58 @@ Observability pipeline + test suite (new-feature branch)
 - [x] Frontend bug fix: ReferenceError on session object in `Home.tsx`
 - [x] Frontend bug fix: Microphone button navigation to Speak screen
 - [x] Backend bug fix: Pydantic ValidationError on Character traits (LLM string handling)
+- [x] **FIXED**: WebSocket "Connection failed" error by fixing port 8000 -> 8001 conflict
+- [x] **FIXED**: Frontend `StorySettings` sending incorrect Enum IDs
+- [x] **FIXED**: Loading screen stuck at 5% — rewired navigation flow (session_ready → SpeakScreen)
+- [x] **UI ENHANCEMENT**: Completely overhauled `LoadingScreen.tsx` with Framer Motion
+- [x] **UI FEATURE**: SpeakScreen with toggleable story sidebar (streams pages in real-time)
+- [x] **CRITICAL FIX**: `main.py` — only export GOOGLE_API_KEY (not Firebase vars) to prevent ADK Pydantic crashes
+- [x] **CRITICAL FIX**: `config.py` — added `extra="ignore"` to Settings model_config
+- [x] **CRITICAL FIX**: `ws.py` — switched from `run_live()` to `run_async()` (native-audio models don't support tool calling)
+- [x] **CRITICAL FIX**: `quill.py` — model back to `gemini-2.5-flash` (supports tool calling via standard runner)
+- [x] **E2E VERIFIED**: Full pipeline works — text→agent→tools→StoryWriter→Imagen→page update (8/9 checks pass)
+
+### Live Agent Audio Session (2026-03-16)
+- [x] **ARCH FIX**: Replaced `tool_context.state` writes in background task with `asyncio.Queue` per-session (tool_context invalid after function returns)
+- [x] **ARCH FIX**: Stripped `image_base64` and `narration_audio_base64` from `story_state` Pages to keep ADK session lean
+- [x] **BUG FIX**: Queue key mismatch — changed from `str(id(story_state))` to stable `session_id` (ADK deserializes objects, changing Python `id()`)
+- [x] **BUG FIX**: Audio gate — drops mic audio during tool calls to prevent Live API `1008 Operation not implemented` race condition
+- [x] **VERIFIED**: Background page generation pipeline works (StoryWriter → Imagen → narration all complete)
+- [ ] **REMAINING**: Agent still slow after ~3 inputs — likely Live API session context growth from accumulated audio/event history
+
+### Context Compression Fix (2026-03-16 session 2)
+- [x] **FIX**: `ws.py` — Added `context_window_compression=ContextWindowCompressionConfig(trigger_tokens=120k, sliding_window=SlidingWindow(target_tokens=60k))` to RunConfig
+- [x] **FIX**: `ws.py` — Added `session_resumption=SessionResumptionConfig(transparent=True)` for Live API session recovery
+- [x] **FIX**: `ws.py` — Added `tool_thread_pool_config=ToolThreadPoolConfig(max_workers=4)` for responsive audio loop
+- [x] **FIX**: `ws.py` — Added diagnostic logging in `consume_page_queue()` (log page arrival + send-to-frontend)
+- [x] **FIX**: `quill.py` — Trimmed agent instruction from ~1800 to ~600 chars to conserve context budget
+- [x] **DEBUG**: `websocket.ts` + `App.tsx` — Added console.log for page_update flow tracing
+- [ ] **REMAINING**: Manual test with 5+ voice inputs to confirm fix
+
+### Firebase Persistence Pipeline Fix (2026-03-16 session 2)
+- [x] **FIX**: `story.py` — Added `title` field to `StoryState`, `image_url`/`narration_url` to `Page`
+- [x] **FIX**: `firestore_service.py` — Fixed `_story_to_doc()` to use actual model fields (not hasattr)
+- [x] **FIX**: `quill.py` — Upload image/audio to Firebase Storage in background pipeline
+- [x] **FIX**: `quill.py` — Auto-generate story title from first page summary
+- [x] **VERIFIED**: Firestore connects to `projects/storyforgegeminilive/databases/(default)`
+- [x] **VERIFIED**: Storage bucket `storyforgegeminilive.firebasestorage.app` accessible
+
+## Known Issues (For Next Session)
+1. **TTS narration may 404**: `gemini-2.5-flash-tts-preview` model may need version verification
+2. **Imagen `negative_prompt` parameter**: Not supported in Gemini API, but falls back to Gemini image gen successfully
+
+## Architecture Notes (Live Agent)
+- `quill.py`: Tools return immediately, spawn `asyncio.create_task()` for heavy pipeline work
+- `_page_queues`: Per-session `asyncio.Queue` keyed by `session_id` for pushing completed pages
+- `ws.py`: `consume_page_queue()` awaits pages and sends `PageUpdateMessage` to frontend
+- `ws.py`: `audio_gate_open` flag drops mic audio during tool execution to prevent 1008 race condition
+- `story_state` Pages store `image_base64=None` to keep ADK session lean; binary data flows only through the queue
+
+- `ws.py`: `RunConfig` uses `context_window_compression` (SlidingWindow 120k trigger / 60k target) + transparent `session_resumption` + `tool_thread_pool_config`
 
 ## Next Steps
-
-- [x] Wire audio bidi-streaming via ADK run_live()
+- [ ] Manual E2E test: 5+ voice inputs, verify agent stays responsive
+- [ ] Confirm page_update messages arrive in browser DevTools console
+- [ ] Verify sidebar shows pages in real-time
+- [ ] Add Web Speech API for browser-based voice input
+- [ ] Push to repo and test with teammates

@@ -1,4 +1,5 @@
 import { Mic, ChevronRight, CheckCircle, Star } from 'lucide-react';
+import { motion } from 'motion/react';
 import type { User } from 'firebase/auth';
 import type { StoryData } from '../App';
 
@@ -17,8 +18,29 @@ export default function HomeScreen({ user, stories, onNavigate, onRead }: HomeSc
 
   const displayStories = stories.length > 0 ? stories : PLACEHOLDER_STORIES;
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, y: 0, 
+      transition: { type: "spring", stiffness: 100 }
+    }
+  };
+
   return (
-    <div className="p-6 space-y-8 pb-28">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="p-6 space-y-8 pb-28 max-w-6xl mx-auto w-full"
+    >
       <header className="flex items-center justify-between pt-4">
         <h1 className="font-serif text-2xl font-bold italic">{greeting}, {displayName} 👋</h1>
         {photoURL && (
@@ -28,8 +50,16 @@ export default function HomeScreen({ user, stories, onNavigate, onRead }: HomeSc
         )}
       </header>
 
-      {/* Hero CTA — using button for keyboard accessibility */}
-      <button type="button" onClick={() => onNavigate('settings')} aria-label="Open story settings" className="w-full bg-gradient-to-br from-yellow-500 to-primary rounded-[2.5rem] p-8 shadow-xl shadow-primary/20 relative overflow-hidden cursor-pointer group text-left">
+      {/* Hero CTA */}
+      <motion.button 
+        variants={itemVariants}
+        whileHover={{ scale: 1.02, boxShadow: "0 20px 40px -10px rgba(244,209,37,0.3)" }}
+        whileTap={{ scale: 0.98 }}
+        type="button" 
+        onClick={() => onNavigate('settings')} 
+        aria-label="Open story settings" 
+        className="w-full bg-gradient-to-br from-yellow-500 to-primary rounded-[2.5rem] w-full p-8 shadow-2xl relative overflow-hidden cursor-pointer group text-left block"
+      >
         <Mic size={120} className="absolute -right-4 -top-4 opacity-10 text-white" />
         <div className="relative z-10 flex items-center justify-between">
           <div className="space-y-3">
@@ -43,10 +73,10 @@ export default function HomeScreen({ user, stories, onNavigate, onRead }: HomeSc
             <ChevronRight size={32} className="text-white" />
           </div>
         </div>
-      </button>
+      </motion.button>
 
       {/* Genres */}
-      <section>
+      <motion.section variants={itemVariants}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-extrabold">My Genres</h3>
           <button type="button" className="text-sm font-semibold text-slate-500">See all</button>
@@ -58,24 +88,38 @@ export default function HomeScreen({ user, stories, onNavigate, onRead }: HomeSc
             </button>
           ))}
         </div>
-      </section>
+      </motion.section>
 
       {/* Library */}
-      <section>
+      <motion.section variants={itemVariants}>
         <h3 className="text-lg font-extrabold mb-4">Library</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {displayStories.map(story => (
-            <button
+            <motion.button
+              variants={itemVariants}
+              whileHover={{ y: -5, scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="button"
               key={story.id}
               onClick={onRead}
-              className="rounded-3xl p-5 aspect-[3/4.2] relative overflow-hidden group shadow-md text-left w-full bg-slate-800"
+              className="rounded-3xl p-5 aspect-[3/4.2] relative overflow-hidden group shadow-xl text-left w-full bg-slate-800 border border-white/5 transition-colors hover:border-primary/30"
             >
-              <div className="relative h-full flex flex-col justify-between">
+              {story.thumbnail && (
+                <div className="absolute inset-0 z-0 transition-transform duration-700 overflow-hidden">
+                  <img src={story.thumbnail} alt={story.title} className="w-full h-full object-cover opacity-50 group-hover:scale-110 transition-transform duration-700" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
+                </div>
+              )}
+              <div className="relative z-10 h-full flex flex-col justify-between">
                 <div className="flex justify-between items-start">
-                  <span className="bg-black/30 backdrop-blur-md text-[10px] px-2 py-1 rounded-full font-bold">{story.page_count}pp</span>
-                  <div className="bg-primary/20 p-2 rounded-full">
-                    <Star size={16} className="text-primary" fill="currentColor" />
+                  <span className="bg-black/30 backdrop-blur-md text-[10px] px-2 py-1 rounded-full font-bold text-white">{story.page_count}pp</span>
+                  <div className="flex items-center gap-2">
+                    {story.is_example && (
+                      <span className="bg-blue-500/20 text-blue-300 backdrop-blur-md text-[8px] px-2 py-1 rounded-full font-extrabold uppercase tracking-widest border border-blue-500/30">Example</span>
+                    )}
+                    <div className="bg-primary/20 p-2 rounded-full backdrop-blur-md">
+                      <Star size={16} className="text-primary" fill="currentColor" />
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -96,17 +140,15 @@ export default function HomeScreen({ user, stories, onNavigate, onRead }: HomeSc
                   )}
                 </div>
               </div>
-            </button>
+            </motion.button>
           ))}
         </div>
-      </section>
-    </div>
+      </motion.section>
+    </motion.div>
   );
 }
 
 const PLACEHOLDER_STORIES: StoryData[] = [
-  { id: '1', title: 'Pip and the Glowing Star', style: 'Watercolour', page_count: 6, current_page: 3, is_complete: false, updated_at: '' },
-  { id: '2', title: 'Luna and the Moongate', style: 'Pastel', page_count: 8, current_page: 8, is_complete: true, updated_at: '' },
-  { id: '3', title: 'Dippy the Dragon', style: 'Pixel Art', page_count: 12, current_page: 0, is_complete: false, updated_at: '' },
-  { id: '4', title: 'Rusty the Fox', style: 'Ink Sketch', page_count: 10, current_page: 0, is_complete: false, updated_at: '' },
+  { id: '1', title: 'Pip and the Glowing Star', style: 'Watercolour', page_count: 6, current_page: 3, is_complete: false, updated_at: '', thumbnail: '/examples/dragon.png', is_example: true },
+  { id: '2', title: 'Luna and the Moongate', style: 'Pastel', page_count: 8, current_page: 8, is_complete: true, updated_at: '', thumbnail: '/examples/moon.png', is_example: true },
 ];

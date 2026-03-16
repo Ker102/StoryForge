@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;1,700&display=swap');
+/* Fonts loaded via <link> in index.html for parallel loading */
 @import "tailwindcss";
 
 @theme {
-  --font-lexend: "Lexend", sans-serif;
-  --font-display: "Lexend", sans-serif;
+  --font-inter: "Inter", sans-serif;
+  --font-display: "Inter", sans-serif;
   --font-serif: "Playfair Display", serif;
   --color-primary: #f4d125;
   --color-background-dark: #0a0a14;
@@ -12,7 +12,7 @@
 
 @layer base {
   body {
-    @apply bg-background-dark text-white font-lexend;
+    @apply bg-background-dark text-white font-inter;
   }
 }
 
@@ -26,4 +26,13 @@
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.animate-shimmer {
+  animation: shimmer 2.5s infinite linear;
 }

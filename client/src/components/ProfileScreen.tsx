@@ -1,5 +1,6 @@
 import { ArrowLeft, User, BookOpen, Settings as SettingsIcon, Cloud, ChevronRight, LogOut, Pencil } from 'lucide-react';
 import type { User as FirebaseUser } from 'firebase/auth';
+import { motion } from 'motion/react';
 
 interface ProfileScreenProps {
   user: FirebaseUser | null;
@@ -52,7 +53,13 @@ export default function ProfileScreen({ user, onNavigate, onLogout }: ProfileScr
               { icon: <SettingsIcon size={20} />, label: 'Preferences' },
               { icon: <Cloud size={20} />, label: 'Notifications', badge: true },
             ].map(item => (
-              <button type="button" key={item.label} className="w-full flex items-center justify-between p-4 glass-card rounded-xl hover:bg-primary/10 transition-all group">
+              <motion.button 
+                whileHover={{ scale: 1.02 }} 
+                whileTap={{ scale: 0.98 }} 
+                type="button" 
+                key={item.label} 
+                className="w-full flex items-center justify-between p-4 glass-card rounded-xl hover:bg-primary/10 transition-all group"
+              >
                 <div className="flex items-center gap-4">
                   <div className="bg-primary/30 p-2.5 rounded-lg group-hover:bg-primary/40 transition-colors text-primary">
                     {item.icon}
@@ -63,24 +70,35 @@ export default function ProfileScreen({ user, onNavigate, onLogout }: ProfileScr
                   {item.badge && <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
                   <ChevronRight size={20} className="text-slate-500" />
                 </div>
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
         <div>
           <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 px-2 py-2">Support & Security</h3>
           <div className="space-y-2">
-            <button type="button" className="w-full flex items-center justify-between p-4 glass-card rounded-xl hover:bg-primary/10 transition-all group">
+            <motion.button 
+              whileHover={{ scale: 1.02 }} 
+              whileTap={{ scale: 0.98 }} 
+              type="button" 
+              className="w-full flex items-center justify-between p-4 glass-card rounded-xl hover:bg-primary/10 transition-all group"
+            >
               <div className="flex items-center gap-4">
                 <div className="bg-primary/30 p-2.5 rounded-lg text-primary"><SettingsIcon size={20} /></div>
                 <span className="font-semibold">Help Center</span>
               </div>
               <ChevronRight size={20} className="text-slate-500" />
-            </button>
-            <button type="button" onClick={onLogout} className="w-full flex items-center gap-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 font-bold">
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.02 }} 
+              whileTap={{ scale: 0.98 }} 
+              type="button" 
+              onClick={onLogout} 
+              className="w-full flex items-center gap-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 font-bold"
+            >
               <div className="bg-red-500/20 p-2.5 rounded-lg"><LogOut size={20} /></div>
               <span>Logout</span>
-            </button>
+            </motion.button>
           </div>
         </div>
       </section>

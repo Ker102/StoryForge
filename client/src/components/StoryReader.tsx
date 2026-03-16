@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, PlayCircle, Volume2, FileText, Share2, Wand2, Settings as SettingsIcon } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, PlayCircle, Volume2, FileText, Share2, Wand2, Settings as SettingsIcon, Mic, Send } from 'lucide-react';
 import type { GeneratedPage } from '../App';
 import type { StorySession } from '../lib/websocket';
 
@@ -10,9 +10,11 @@ interface StoryReaderProps {
   session: StorySession | null;
   onBack: () => void;
   onNewStory: () => void;
+  onTextSteer: (text: string) => void;
+  onSpeakSteer: () => void;
 }
 
-export default function StoryReader({ pages, title, style, session, onBack, onNewStory }: StoryReaderProps) {
+export default function StoryReader({ pages, title, style, session, onBack, onNewStory, onTextSteer, onSpeakSteer }: StoryReaderProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -58,7 +60,7 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
   };
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col bg-background-dark text-slate-100 overflow-x-hidden">
+    <div className="relative flex min-h-screen w-full max-w-6xl mx-auto flex-col bg-background-dark text-slate-100 overflow-x-hidden">
       {/* Header */}
       <header className="flex items-center bg-background-dark/80 backdrop-blur-md p-4 border-b border-white/5 sticky top-0 z-10">
         <button type="button" onClick={onBack} aria-label="Back" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
@@ -84,7 +86,7 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
         {page?.image_base64 && (
           <div className="w-full">
             <div className="px-0 sm:px-4 sm:py-4">
-              <div className="relative w-full aspect-[4/3] sm:rounded-xl overflow-hidden bg-primary/5 group">
+              <div className="relative w-full aspect-[4/3] sm:rounded-[2.5rem] overflow-hidden bg-primary/5 group shadow-[0_20px_60px_-15px_rgba(13,148,136,0.15)]">
                 <div className="absolute inset-0 bg-gradient-to-t from-background-dark/80 via-transparent to-transparent z-10" />
                 <img
                   className="w-full h-full object-cover"
@@ -150,11 +152,40 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
             <button
               type="button"
               onClick={handlePlayAudio}
-              className={`flex items-center gap-3 px-6 py-3 rounded-full font-bold shadow-xl transition-all active:scale-95 ${isPlaying ? 'bg-red-500 text-white animate-pulse' : 'bg-primary text-black shadow-primary/30 hover:scale-105'}`}
+              className={`flex items-center gap-3 px-6 py-3 rounded-full font-bold transition-all active:scale-95 ${isPlaying ? 'bg-red-500 text-white shadow-red-500/30' : 'bg-primary text-slate-900 shadow-2xl shadow-primary/20 hover:scale-105'}`}
             >
               {isPlaying ? <Volume2 size={24} /> : <PlayCircle size={24} fill="currentColor" />}
               <span>{isPlaying ? 'Stop Reading' : 'Read Aloud'}</span>
             </button>
+          </div>
+        )}
+
+        {/* Steering Row */}
+        {hasPages && (
+          <div className="px-6 py-4 mt-auto">
+            <div className="max-w-2xl mx-auto flex items-center gap-3 bg-white/5 border border-white/10 rounded-full p-2 pl-6">
+              <input 
+                type="text" 
+                placeholder="Say 'add a twist'..." 
+                className="flex-1 bg-transparent text-white focus:outline-none placeholder:text-white/30"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const val = (e.target as HTMLInputElement).value;
+                    if (val.trim()) {
+                      onTextSteer(val);
+                      (e.target as HTMLInputElement).value = '';
+                    }
+                  }
+                }}
+              />
+              <button 
+                onClick={onSpeakSteer}
+                className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-slate-900 transition-transform active:scale-95 hover:scale-105 shadow-xl shadow-primary/20"
+                aria-label="Speak direction"
+              >
+                <Mic size={20} />
+              </button>
+            </div>
           </div>
         )}
       </main>

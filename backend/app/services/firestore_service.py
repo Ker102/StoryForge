@@ -26,8 +26,8 @@ def _story_to_doc(story_state: StoryState) -> dict[str, Any]:
                 "text": page.text,
                 "summary": page.summary,
                 "scene_description": page.scene_description,
-                "image_url": page.image_url if hasattr(page, "image_url") else None,
-                "narration_url": page.narration_url if hasattr(page, "narration_url") else None,
+                "image_url": page.image_url,
+                "narration_url": page.narration_url,
             }
         )
 

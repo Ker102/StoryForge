@@ -76,6 +76,8 @@ class Page(BaseModel):
     scene_description: str = ""
     image_base64: str | None = None
     narration_audio_base64: str | None = None
+    image_url: str | None = None
+    narration_url: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -98,6 +100,20 @@ AGE_PROFILES = {
         "tone": "adventurous, with nuanced emotions and ambiguous endings allowed",
         "themes": "identity, adventure, mystery, coming-of-age, sacrifice",
     },
+    AgeSetting.ADULTS: {
+        "label": "Adults",
+        "vocabulary": "sophisticated, literary prose with varied sentence structures",
+        "page_range": (12, 20),
+        "tone": "nuanced, emotionally complex, with layered storytelling",
+        "themes": "love, loss, redemption, morality, self-discovery, legacy",
+    },
+    AgeSetting.EDUCATOR: {
+        "label": "Educator",
+        "vocabulary": "clear, engaging language with embedded learning moments",
+        "page_range": (8, 12),
+        "tone": "warm, instructive, with gentle lessons woven into narrative",
+        "themes": "curiosity, growth, problem-solving, empathy, teamwork",
+    },
 }
 
 
@@ -109,6 +125,7 @@ class StoryState(BaseModel):
     """
 
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str = ""
     seed: str = ""
     style: VisualStyle = VisualStyle.WATERCOLOUR
     age_setting: AgeSetting = AgeSetting.CHILDREN_5_8

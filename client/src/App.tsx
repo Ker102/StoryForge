@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, signOut, type User } from './lib/firebase';
 import { connectToStory, fetchStories, type StorySession, type PageUpdate } from './lib/websocket';
 
-import AuthScreen from './components/AuthScreen';
+import LandingScreen from './components/LandingScreen';
 import Onboarding from './components/Onboarding';
 import HomeScreen from './components/HomeScreen';
 import LibraryScreen from './components/LibraryScreen';
@@ -12,6 +12,7 @@ import LoadingScreen from './components/LoadingScreen';
 import StoryReader from './components/StoryReader';
 import ProfileScreen from './components/ProfileScreen';
 import BottomNav from './components/BottomNav';
+import SpeakScreen from './components/SpeakScreen';
 
 export interface StoryData {
   id: string;
@@ -21,6 +22,8 @@ export interface StoryData {
   is_complete: boolean;
   page_count: number;
   updated_at: string;
+  thumbnail?: string;
+  is_example?: boolean;
 }
 
 export interface GeneratedPage {
@@ -32,7 +35,7 @@ export interface GeneratedPage {
 }
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState('auth');
+  const [currentPage, setCurrentPage] = useState('landing');
   const [user, setUser] = useState<User | null>(null);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
 
@@ -42,6 +45,57 @@ export default function App() {
   const [storyTitle, setStoryTitle] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [storyStyle, setStoryStyle] = useState('');
+  const [agentText, setAgentText] = useState('');
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [storyId, setStoryId] = useState('');
+
+  // Audio Playback — gapless scheduling for smooth streaming
+  const playQueueRef = useRef<{buffer: ArrayBuffer}[]>([]);
+  const playContextRef = useRef<AudioContext | null>(null);
+  const nextPlayTimeRef = useRef(0);
+
+  const processAudioQueue = () => {
+    if (playQueueRef.current.length === 0) return;
+
+    if (!playContextRef.current) {
+      playContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate: 24000,
+      });
+      nextPlayTimeRef.current = playContextRef.current.currentTime;
+    }
+
+    const ctx = playContextRef.current;
+
+    // Schedule all queued chunks back-to-back for gapless playback
+    while (playQueueRef.current.length > 0) {
+      const { buffer } = playQueueRef.current.shift()!;
+      const pcm16 = new Int16Array(buffer);
+      const audioBuffer = ctx.createBuffer(1, pcm16.length, 24000);
+      const channelData = audioBuffer.getChannelData(0);
+      for (let i = 0; i < pcm16.length; i++) {
+        channelData[i] = pcm16[i] / 32768.0;
+      }
+
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+
+      // Schedule at the end of the previous chunk (gapless)
+      const startTime = Math.max(ctx.currentTime, nextPlayTimeRef.current);
+      source.start(startTime);
+      nextPlayTimeRef.current = startTime + audioBuffer.duration;
+    }
+  };
+
+  // Cleanup AudioContext on unmount to prevent leaks
+  useEffect(() => {
+    return () => {
+      if (playContextRef.current) {
+        playContextRef.current.close();
+        playContextRef.current = null;
+      }
+    };
+  }, []);
 
   // Library
   const [libraryStories, setLibraryStories] = useState<StoryData[]>([]);
@@ -50,7 +104,7 @@ export default function App() {
   useEffect(() => {
     const unsub = onAuthStateChanged((u) => {
       setUser(u);
-      if (u && currentPage === 'auth') {
+      if (u && (currentPage === 'auth' || currentPage === 'landing')) {
         setCurrentPage(hasSeenOnboarding ? 'home' : 'onboarding');
       }
     });
@@ -75,16 +129,27 @@ export default function App() {
       const session = await connectToStory(
         { style: config.style, age_setting: config.age_setting, seed: config.seed },
         {
-          onSessionReady: (id) => {
-            setStatusMessage('Forging the narrative...');
+          onSessionReady: (id, sess) => {
+            setStatusMessage('Quill is ready! Opening the story studio...');
+            setStorySession(sess);
+            setStoryId(id);
+            // Transition to speak screen after a brief moment so user sees "ready" status
+            setTimeout(() => setCurrentPage('speak'), 1500);
           },
           onPageUpdate: (page) => {
+            console.log(`[App] Page ${page.page_number} added to state (has_image=${!!page.image_base64})`);
             setGeneratedPages(prev => [...prev, page]);
             setStatusMessage(`Page ${page.page_number} ready!`);
           },
           onAgentText: (text) => {
+            setAgentText(text);
             if (!storyTitle && text.length > 10) setStoryTitle(text.slice(0, 60));
           },
+          onAudioData: (buffer) => {
+            playQueueRef.current.push({ buffer: buffer as ArrayBuffer });
+            processAudioQueue();
+          },
+          onAudioLevel: (level) => setAudioLevel(level),
           onStatus: (msg) => setStatusMessage(msg),
           onError: (msg) => setStatusMessage(`Error: ${msg}`),
           onClose: () => {
@@ -100,6 +165,13 @@ export default function App() {
     }
   }, []);
 
+  const handleTextSteer = useCallback((text: string) => {
+    if (storySession) {
+      storySession.sendText(text);
+      setCurrentPage('loading');
+    }
+  }, [storySession]);
+
   const handleLogout = async () => {
     await signOut();
     setUser(null);
@@ -109,13 +181,14 @@ export default function App() {
     setStatusMessage('');
     setStoryStyle('');
     setLibraryStories([]);
-    setCurrentPage('auth');
+    setCurrentPage('landing');
   };
 
   const renderPage = () => {
     switch (currentPage) {
+      case 'landing':
       case 'auth':
-        return <AuthScreen />;
+        return <LandingScreen />;
       case 'onboarding':
         return <Onboarding onFinish={() => { setHasSeenOnboarding(true); setCurrentPage('home'); }} />;
       case 'home':
@@ -127,7 +200,9 @@ export default function App() {
       case 'loading':
         return <LoadingScreen status={statusMessage} pages={generatedPages} onComplete={() => setCurrentPage('reader')} />;
       case 'reader':
-        return <StoryReader pages={generatedPages} title={storyTitle} style={storyStyle} session={storySession} onBack={() => setCurrentPage('home')} onNewStory={() => setCurrentPage('settings')} />;
+        return <StoryReader pages={generatedPages} title={storyTitle} style={storyStyle} session={storySession} onBack={() => setCurrentPage('home')} onNewStory={() => setCurrentPage('settings')} onTextSteer={handleTextSteer} onSpeakSteer={() => setCurrentPage('speak')} />;
+      case 'speak':
+        return <SpeakScreen session={storySession} pages={generatedPages} agentText={agentText} audioLevel={audioLevel} storyId={storyId} onClose={() => setCurrentPage(generatedPages.length > 0 ? 'reader' : 'home')} onSubmit={() => setCurrentPage('reader')} />;
       case 'profile':
         return <ProfileScreen user={user} onNavigate={setCurrentPage} onLogout={handleLogout} />;
       default:
@@ -136,14 +211,14 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background-dark text-white font-lexend w-full max-w-4xl mx-auto shadow-2xl relative">
+    <div className="min-h-screen bg-background-dark text-white font-inter w-full relative overflow-x-hidden">
       <AnimatePresence mode="wait">
         <motion.div
           key={currentPage}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
+          initial={{ opacity: 0, scale: 0.98, filter: "blur(4px)" }}
+          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+          exit={{ opacity: 0, scale: 1.02, filter: "blur(4px)" }}
+          transition={{ type: "spring", stiffness: 250, damping: 25 }}
         >
           {renderPage()}
         </motion.div>

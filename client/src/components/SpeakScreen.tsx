@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, RefreshCw, Check, BookOpen, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
+import { X, RefreshCw, Check, BookOpen, ChevronRight, ChevronLeft, Sparkles, ImagePlus, Volume2 } from 'lucide-react';
 import type { StorySession } from '../lib/websocket';
 import type { GeneratedPage } from '../App';
 
@@ -11,11 +11,14 @@ interface SpeakScreenProps {
   audioLevel: number;
   onClose: () => void;
   onSubmit: () => void;
+  storyId?: string;
 }
 
-export default function SpeakScreen({ session, pages, agentText, audioLevel, onClose, onSubmit }: SpeakScreenProps) {
+export default function SpeakScreen({ session, pages, agentText, audioLevel, onClose, onSubmit, storyId }: SpeakScreenProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [generatingImages, setGeneratingImages] = useState(false);
+  const [generatingNarration, setGeneratingNarration] = useState(false);
   const pagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -113,6 +116,7 @@ export default function SpeakScreen({ session, pages, agentText, audioLevel, onC
               )}
             </motion.button>
             <button
+              type="button"
               onClick={handleClose}
               className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
             >
@@ -258,6 +262,7 @@ export default function SpeakScreen({ session, pages, agentText, audioLevel, onC
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => setSidebarOpen(false)}
                 className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
               >
@@ -330,6 +335,62 @@ export default function SpeakScreen({ session, pages, agentText, audioLevel, onC
               )}
               <div ref={pagesEndRef} />
             </div>
+
+            {/* Generate Images / TTS Buttons */}
+            {pages.length > 0 && storyId && (
+              <div className="border-t border-white/5 p-4 space-y-2">
+                <button
+                  type="button"
+                  disabled={generatingImages}
+                  onClick={async () => {
+                    setGeneratingImages(true);
+                    try {
+                      const { getAuth } = await import('firebase/auth');
+                      const token = await getAuth().currentUser?.getIdToken();
+                      const res = await fetch(`http://localhost:8001/api/stories/${storyId}/generate-images`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                      });
+                      const data = await res.json();
+                      console.log('[GenerateImages] result:', data);
+                    } catch (err) {
+                      console.error('[GenerateImages] error:', err);
+                    } finally {
+                      setGeneratingImages(false);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-500 text-white font-semibold text-xs tracking-wide shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ImagePlus size={14} />
+                  {generatingImages ? 'Generating Images...' : 'Generate Illustrations'}
+                </button>
+                <button
+                  type="button"
+                  disabled={generatingNarration}
+                  onClick={async () => {
+                    setGeneratingNarration(true);
+                    try {
+                      const { getAuth } = await import('firebase/auth');
+                      const token = await getAuth().currentUser?.getIdToken();
+                      const res = await fetch(`http://localhost:8001/api/stories/${storyId}/generate-narration`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                      });
+                      const data = await res.json();
+                      console.log('[GenerateNarration] result:', data);
+                    } catch (err) {
+                      console.error('[GenerateNarration] error:', err);
+                    } finally {
+                      setGeneratingNarration(false);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-semibold text-xs tracking-wide shadow-lg shadow-teal-500/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Volume2 size={14} />
+                  {generatingNarration ? 'Generating Narration...' : 'Generate Narration'}
+                </button>
+              </div>
+            )}
           </motion.aside>
         )}
       </AnimatePresence>

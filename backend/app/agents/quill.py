@@ -343,9 +343,10 @@ STORY STATE:
 {story_context}
 """
 
+    from app.config import get_settings
     return Agent(
         name="quill",
-        model="gemini-2.5-flash-native-audio-latest",
+        model=get_settings().live_model,
         instruction=instruction,
         tools=[generate_story_page, finish_story],
     )

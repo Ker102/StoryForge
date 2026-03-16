@@ -8,8 +8,9 @@ from dotenv import dotenv_values
 # they see unexpected env vars like FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, etc.
 # Our own Settings class loads the full file via its env_file config.
 _env_vars = dotenv_values(".env.storyforge")
-if "GOOGLE_API_KEY" in _env_vars:
-    os.environ.setdefault("GOOGLE_API_KEY", _env_vars["GOOGLE_API_KEY"])
+google_api_key = _env_vars.get("GOOGLE_API_KEY")
+if google_api_key:
+    os.environ.setdefault("GOOGLE_API_KEY", google_api_key)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

@@ -47,6 +47,7 @@ export default function App() {
   const [storyStyle, setStoryStyle] = useState('');
   const [agentText, setAgentText] = useState('');
   const [audioLevel, setAudioLevel] = useState(0);
+  const [storyId, setStoryId] = useState('');
 
   // Audio Playback — gapless scheduling for smooth streaming
   const playQueueRef = useRef<{buffer: ArrayBuffer}[]>([]);
@@ -86,6 +87,16 @@ export default function App() {
     }
   };
 
+  // Cleanup AudioContext on unmount to prevent leaks
+  useEffect(() => {
+    return () => {
+      if (playContextRef.current) {
+        playContextRef.current.close();
+        playContextRef.current = null;
+      }
+    };
+  }, []);
+
   // Library
   const [libraryStories, setLibraryStories] = useState<StoryData[]>([]);
 
@@ -121,6 +132,7 @@ export default function App() {
           onSessionReady: (id, sess) => {
             setStatusMessage('Quill is ready! Opening the story studio...');
             setStorySession(sess);
+            setStoryId(id);
             // Transition to speak screen after a brief moment so user sees "ready" status
             setTimeout(() => setCurrentPage('speak'), 1500);
           },
@@ -190,7 +202,7 @@ export default function App() {
       case 'reader':
         return <StoryReader pages={generatedPages} title={storyTitle} style={storyStyle} session={storySession} onBack={() => setCurrentPage('home')} onNewStory={() => setCurrentPage('settings')} onTextSteer={handleTextSteer} onSpeakSteer={() => setCurrentPage('speak')} />;
       case 'speak':
-        return <SpeakScreen session={storySession} pages={generatedPages} agentText={agentText} audioLevel={audioLevel} onClose={() => setCurrentPage(generatedPages.length > 0 ? 'reader' : 'home')} onSubmit={() => setCurrentPage('reader')} />;
+        return <SpeakScreen session={storySession} pages={generatedPages} agentText={agentText} audioLevel={audioLevel} storyId={storyId} onClose={() => setCurrentPage(generatedPages.length > 0 ? 'reader' : 'home')} onSubmit={() => setCurrentPage('reader')} />;
       case 'profile':
         return <ProfileScreen user={user} onNavigate={setCurrentPage} onLogout={handleLogout} />;
       default:

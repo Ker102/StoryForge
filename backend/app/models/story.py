@@ -100,6 +100,20 @@ AGE_PROFILES = {
         "tone": "adventurous, with nuanced emotions and ambiguous endings allowed",
         "themes": "identity, adventure, mystery, coming-of-age, sacrifice",
     },
+    AgeSetting.ADULTS: {
+        "label": "Adults",
+        "vocabulary": "sophisticated, literary prose with varied sentence structures",
+        "page_range": (12, 20),
+        "tone": "nuanced, emotionally complex, with layered storytelling",
+        "themes": "love, loss, redemption, morality, self-discovery, legacy",
+    },
+    AgeSetting.EDUCATOR: {
+        "label": "Educator",
+        "vocabulary": "clear, engaging language with embedded learning moments",
+        "page_range": (8, 12),
+        "tone": "warm, instructive, with gentle lessons woven into narrative",
+        "themes": "curiosity, growth, problem-solving, empathy, teamwork",
+    },
 }
 
 

@@ -256,7 +256,7 @@ async def story_websocket(websocket: WebSocket):
                             StatusMessage(
                                 session_id=session_id,
                                 type=WSMessageType.ERROR,
-                                message=f"Quill error: {type(e).__name__}: {e}",
+                                message="Quill encountered an internal error. Please try again.",
                             ).model_dump()
                         )
                         break

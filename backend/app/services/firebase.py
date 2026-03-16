@@ -54,23 +54,26 @@ def _get_app() -> firebase_admin.App:
         # Method 2: File path
         if cred is None:
             cred_path = Path(settings.firebase_service_account_path)
-            if cred_path.exists():
-                cred = credentials.Certificate(str(cred_path))
-                logger.info("Firebase: using key file at %s", cred_path)
+            if cred_path.is_file():
+                try:
+                    cred = credentials.Certificate(str(cred_path))
+                    logger.info("Firebase: using key file at %s", cred_path)
+                except (ValueError, Exception) as exc:
+                    logger.error("Firebase: failed to load key file %s: %s", cred_path, exc)
             else:
-                logger.warning("Firebase: key file not found at %s", cred_path)
+                logger.warning("Firebase service account key not found at %s", cred_path)
 
         # Method 3: Application Default Credentials
         if cred is None:
             try:
                 cred = credentials.ApplicationDefault()
                 logger.info("Firebase: using Application Default Credentials")
-            except Exception:
+            except Exception as exc:
                 logger.error("Firebase: no credentials found (no env var, no file, no ADC)")
                 raise FileNotFoundError(
                     "No Firebase credentials: set FIREBASE_SERVICE_ACCOUNT_KEY env var "
                     "or provide serviceAccountKey.json"
-                )
+                ) from exc
 
         _app = firebase_admin.initialize_app(
             cred,

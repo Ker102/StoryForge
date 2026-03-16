@@ -52,13 +52,16 @@ async def health_check():
 # Serve the built frontend in production (when STORYFORGE_STATIC_DIR is set)
 _static_dir = os.environ.get("STORYFORGE_STATIC_DIR")
 if _static_dir and os.path.isdir(_static_dir):
-    from fastapi.staticfiles import StaticFiles
+    from pathlib import Path as _Path
+    from fastapi.staticfiles import StaticFiles  # noqa: F811
     from fastapi.responses import FileResponse
+
+    _static_root = _Path(_static_dir).resolve()
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         """Serve SPA — return index.html for all non-API routes."""
-        file_path = os.path.join(_static_dir, full_path)
-        if os.path.isfile(file_path):
-            return FileResponse(file_path)
-        return FileResponse(os.path.join(_static_dir, "index.html"))
+        target = (_static_root / full_path).resolve()
+        if target.is_file() and target.is_relative_to(_static_root):
+            return FileResponse(str(target))
+        return FileResponse(str(_static_root / "index.html"))

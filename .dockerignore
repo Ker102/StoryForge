@@ -1,30 +1,27 @@
-# Exclude heavy / unnecessary directories from Docker build context
+# Secrets — never bake into Docker image
+backend/serviceAccountKey.json
+backend/.env
+backend/.env.*
+*.pem
+*.key
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Node
 node_modules/
-dist/
-.git/
-.github/
-.gemini/
-.ruff_cache/
-.replit
-backend/.venv/
-backend/.ruff_cache/
-backend/.pytest_cache/
-backend/storyforge_backend.egg-info/
-backend/__pycache__/
-backend/tests/
-backend/e2e_pipeline_test.py
-*.pyc
+client/node_modules/
+
+# Python
 __pycache__/
-pip_output.txt
-test_output*.txt
-push_payload.json
-*.cjs
-patch_*.py
-patch_*.js
-quill_pr10.py
-ws_pr10.py
-websocket_pr10.ts
-script/
-gemini.md
-README.md
-SECURITY.md
+*.pyc
+.venv/
+backend/.venv/
+
+# Build artifacts
+dist/

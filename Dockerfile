@@ -25,14 +25,19 @@ RUN npx vite build
 COPY backend/pyproject.toml backend/
 RUN pip install --no-cache-dir backend/
 
-# ── Backend source + Firebase credentials ──
+# ── Backend source ──
 COPY backend/ backend/
 
 # Point to the Vite build output
 ENV PORT=8080
 ENV STORYFORGE_STATIC_DIR=/app/dist/public
 
+# Create non-root user for runtime security
+RUN addgroup --system appuser && adduser --system --ingroup appuser appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8080
 
 WORKDIR /app/backend
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]

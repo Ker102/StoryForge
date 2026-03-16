@@ -273,10 +273,6 @@ export async function fetchStories(): Promise<
   const token = await getIdToken();
   if (!token) return [];
 
-  const API_BASE =
-    import.meta.env.VITE_API_URL ||
-    `${httpScheme}//${window.location.hostname}:8001`;
-
   const res = await fetch(`${API_BASE}/api/stories`, {
     headers: { Authorization: `Bearer ${token}` },
   });

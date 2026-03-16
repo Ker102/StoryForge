@@ -59,14 +59,18 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
     }
   };
 
+  const escapeHtml = (str: string) =>
+    str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
   const handleDownloadPDF = () => {
     if (!hasPages) return;
+    const safeTitle = escapeHtml(title || 'StoryForge');
     // Build a printable HTML page with all story pages
     const html = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>${title || 'StoryForge'}</title>
+<title>${safeTitle}</title>
 <style>
   body { font-family: Georgia, serif; max-width: 700px; margin: 40px auto; color: #222; line-height: 1.7; }
   h1 { font-size: 2rem; text-align: center; margin-bottom: 2rem; }
@@ -78,12 +82,12 @@ export default function StoryReader({ pages, title, style, session, onBack, onNe
 </style>
 </head>
 <body>
-<h1>${title || 'My StoryForge Story'}</h1>
+<h1>${safeTitle}</h1>
 ${pages.map((p, i) => `
 <div class="page">
   ${p.image_base64 ? `<img class="page-img" src="data:image/png;base64,${p.image_base64}" alt="Page ${i + 1} illustration" />` : ''}
   <div class="page-num">Page ${i + 1}</div>
-  <div class="page-text">${p.text}</div>
+  <div class="page-text">${escapeHtml(p.text)}</div>
 </div>`).join('')}
 </body>
 </html>`;
@@ -92,7 +96,7 @@ ${pages.map((p, i) => `
       win.document.write(html);
       win.document.close();
       win.focus();
-      setTimeout(() => win.print(), 500);
+      win.onload = () => win.print();
     }
   };
 

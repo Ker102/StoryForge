@@ -313,7 +313,6 @@ def build_quill_agent(story_state: StoryState) -> Agent:
     Returns:
         A configured ADK Agent.
     """
-    story_context = story_state.get_live_summary()
     profile = story_state.age_profile
 
     instruction = f"""You are Quill, a playful story companion.

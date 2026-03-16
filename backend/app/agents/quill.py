@@ -157,7 +157,11 @@ async def _generate_page_background(
     age_setting: str,
     queue_key: str,
 ) -> None:
-    """Background task: runs the heavy write→illustrate→narrate pipeline."""
+    """Background task: generates story TEXT only (no images during conversation).
+
+    Images and narration are deferred until the story is complete to keep
+    the Live API session responsive.
+    """
     from app.observability import metrics, tracer
     from app.observability.trace import SpanStatus
 
@@ -171,7 +175,7 @@ async def _generate_page_background(
         story_writer = _get_story_writer()
         safety = _get_safety()
 
-        # Step 1: Generate story text
+        # Generate story text via StoryWriter (Gemini)
         writer_result = await story_writer.generate_page(
             story_state=story_state,
             page_number=page_number,
@@ -195,61 +199,12 @@ async def _generate_page_background(
                 tracer.end_span(span, SpanStatus.ERROR)
                 return
 
-        # Step 2: Generate illustration + narration in parallel
-        image_base64, narration_base64 = await asyncio.gather(
-            _get_image_service().generate_illustration(
-                scene_description=writer_result["scene_description"],
-                style=style_value,
-            ),
-            _get_narration_service().generate_narration(page_text),
-            return_exceptions=True,
-        )
-
-        if isinstance(image_base64, Exception):
-            logger.error("Illustration failed: %s", image_base64)
-            image_base64 = None
-        if isinstance(narration_base64, Exception):
-            logger.error("Narration failed: %s", narration_base64)
-            narration_base64 = None
-
-        # Step 3: Upload media to Firebase Storage (non-blocking, best-effort)
-        image_url = None
-        narration_url = None
-        try:
-            from app.services import storage_service
-            import base64 as b64_mod
-
-            if image_base64 and isinstance(image_base64, str):
-                try:
-                    image_url = await storage_service.upload_image(
-                        story_state.session_id, page_number, b64_mod.b64decode(image_base64)
-                    )
-                except Exception as img_err:
-                    logger.warning("Image upload failed: %s", img_err)
-
-            if narration_base64 and isinstance(narration_base64, str):
-                try:
-                    narration_url = await storage_service.upload_audio(
-                        story_state.session_id, page_number, b64_mod.b64decode(narration_base64)
-                    )
-                except Exception as audio_err:
-                    logger.warning("Audio upload failed: %s", audio_err)
-
-        except Exception as upload_err:
-            logger.warning("Firebase Storage upload error: %s", upload_err)
-
-        # Step 4: Update story state (WITHOUT binary data to keep session lean)
+        # Update story state (text only — images deferred to post-story)
         new_page = Page(
             number=page_number,
             text=page_text,
             summary=writer_result["summary"],
             scene_description=writer_result["scene_description"],
-            # DO NOT store image/audio base64 in story_state — it bloats
-            # the ADK session and slows down the Live API dramatically.
-            image_base64=None,
-            narration_audio_base64=None,
-            image_url=image_url,
-            narration_url=narration_url,
         )
         story_state.pages.append(new_page)
 
@@ -280,27 +235,24 @@ async def _generate_page_background(
             if rule and rule not in story_state.world_rules:
                 story_state.world_rules.append(rule)
 
-        # Push completed page WITH binary data to the queue (frontend gets it)
+        # Push completed page to the queue (text only, no images yet)
         page_data = {
             "page_number": page_number,
             "text": page_text,
             "summary": writer_result["summary"],
-            "image_base64": image_base64,
-            "narration_audio_base64": narration_base64,
+            "scene_description": writer_result.get("scene_description", ""),
         }
 
         queue = _page_queues.get(queue_key)
         if queue:
             await queue.put(page_data)
-            logger.info("Background page %d pushed to queue in %.1fs", page_number, time.time() - _start)
+            logger.info("Page %d text pushed to queue in %.1fs", page_number, time.time() - _start)
         else:
             logger.warning("No page queue registered for key %s — page %d lost", queue_key, page_number)
 
         span.set_attribute("page_number", page_number)
         span.set_attribute("text_length", len(page_text))
-        span.set_attribute("has_image", image_base64 is not None)
-        span.set_attribute("has_narration", narration_base64 is not None)
-        span.add_event("page_ready")
+        span.add_event("page_text_ready")
         tracer.end_span(span, SpanStatus.OK)
         metrics.pages_generated.inc()
         metrics.tool_duration.observe(time.time() - _start)

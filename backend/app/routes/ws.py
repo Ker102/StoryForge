@@ -16,12 +16,13 @@ import traceback as tb_module
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google.adk.agents.live_request_queue import LiveRequestQueue
-from google.adk.events import Event, EventActions
+from google.adk.agents.run_config import RunConfig, StreamingMode
+from google.adk.events import Event, EventActions  # noqa: F401 (used by finish_story state check)
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
-from app.agents.quill import build_quill_agent
+from app.agents.quill import build_quill_agent, register_page_queue, unregister_page_queue
 from app.middleware.auth import verify_firebase_token
 from app.models.session import (
     AgentTextMessage,
@@ -65,6 +66,9 @@ async def story_websocket(websocket: WebSocket):
     agent_task = None
     user_id = None  # Firebase UID (None = anonymous)
     send_lock = asyncio.Lock()
+    # Audio gate: drop incoming mic audio while a tool call is in progress
+    # to avoid the Live API 1008 race condition.
+    audio_gate_open = True
 
     async def safe_send(msg: dict) -> None:
         """Send a JSON message with lock to prevent interleaving."""
@@ -141,78 +145,62 @@ async def story_websocket(websocket: WebSocket):
 
         live_queue = LiveRequestQueue()
 
+        # RunConfig for native-audio model: BIDI streaming with audio responses
+        run_config = RunConfig(
+            streaming_mode=StreamingMode.BIDI,
+            response_modalities=["AUDIO"],
+            input_audio_transcription=types.AudioTranscriptionConfig(),
+            output_audio_transcription=types.AudioTranscriptionConfig(),
+        )
+
         async def run_agent_loop():
             """Background task: runs the live bidi-streaming agent loop."""
+            nonlocal audio_gate_open
             try:
                 async for event in runner.run_live(
                     user_id=session_id,
                     session_id=adk_session.id,
                     live_request_queue=live_queue,
+                    run_config=run_config,
                 ):
-                    # 1. Forward raw audio chunks directly to frontend
-                    if getattr(event, "inline_data", None) and getattr(event.inline_data, "data", None):
-                        async with send_lock:
-                            await websocket.send_bytes(event.inline_data.data)
+                    # Detect tool call events to gate audio input
+                    # ADK events have .actions with tool_code_execution or
+                    # function_calls in .content.parts
+                    if event.content and event.content.parts:
+                        has_function_call = any(
+                            getattr(part, "function_call", None) is not None
+                            for part in event.content.parts
+                        )
+                        has_function_response = any(
+                            getattr(part, "function_response", None) is not None
+                            for part in event.content.parts
+                        )
+                        if has_function_call:
+                            audio_gate_open = False
+                            logger.info("Audio gate CLOSED (tool call in progress)")
+                        if has_function_response:
+                            audio_gate_open = True
+                            logger.info("Audio gate OPEN (tool call complete)")
 
-                    # 2. Forward agent text responses
-                    if getattr(event, "content", None) and getattr(event.content, "parts", None):
+                    # Forward audio + text from agent response
+                    if event.content and event.content.parts:
                         for part in event.content.parts:
-                            if getattr(part, "text", None):
+                            # Audio data — forward immediately
+                            if getattr(part, "inline_data", None) and getattr(part.inline_data, "data", None):
+                                # Re-open gate when agent starts speaking again
+                                if not audio_gate_open:
+                                    audio_gate_open = True
+                                    logger.info("Audio gate OPEN (agent audio resumed)")
+                                async with send_lock:
+                                    await websocket.send_bytes(part.inline_data.data)
+                            # Text responses (transcriptions or text-only)
+                            elif getattr(part, "text", None):
                                 await safe_send(
                                     AgentTextMessage(
                                         session_id=session_id,
                                         text=part.text,
                                     ).model_dump()
                                 )
-
-                    # 3. Check for generated pages in session state
-                    current_session = await _session_service.get_session(
-                        app_name="storyforge",
-                        user_id=session_id,
-                        session_id=adk_session.id,
-                    )
-                    latest_page = current_session.state.get("latest_page")
-                    if latest_page:
-                        await safe_send(
-                            PageUpdateMessage(
-                                session_id=session_id,
-                                page_number=latest_page["page_number"],
-                                text=latest_page["text"],
-                                summary=latest_page["summary"],
-                                image_base64=latest_page.get("image_base64"),
-                                narration_audio_base64=latest_page.get(
-                                    "narration_audio_base64"
-                                ),
-                            ).model_dump()
-                        )
-                        # Clear via proper ADK state_delta
-                        clear_evt = Event(
-                            invocation_id="clear_latest_page",
-                            author="system",
-                            actions=EventActions(state_delta={"latest_page": None}),
-                        )
-                        await _session_service.append_event(current_session, clear_evt)
-
-                        # Persist to Firestore (if authenticated)
-                        if user_id:
-                            story_state_obj = current_session.state.get("story_state")
-                            if story_state_obj:
-                                await firestore_service.save_story(user_id, story_state_obj)
-
-                    # 4. Check for story completion
-                    if current_session.state.get("story_complete"):
-                        await safe_send(
-                            StatusMessage(
-                                session_id=session_id,
-                                message="Your story is complete! Download it from the export page.",
-                            ).model_dump()
-                        )
-                        done_evt = Event(
-                            invocation_id="clear_story_complete",
-                            author="system",
-                            actions=EventActions(state_delta={"story_complete": False}),
-                        )
-                        await _session_service.append_event(current_session, done_evt)
 
             except Exception as e:
                 tb_str = tb_module.format_exc()
@@ -226,6 +214,34 @@ async def story_websocket(websocket: WebSocket):
                 )
 
         agent_task = asyncio.create_task(run_agent_loop())
+
+        # Background task: consume completed pages from the async queue
+        story_state_key = session_id  # Must match key used in quill.py
+        page_queue: asyncio.Queue = asyncio.Queue()
+        register_page_queue(story_state_key, page_queue)
+
+        async def consume_page_queue():
+            """Await completed pages from background generation tasks."""
+            while True:
+                page_data = await page_queue.get()  # blocks until a page is ready
+                await safe_send(
+                    PageUpdateMessage(
+                        session_id=session_id,
+                        page_number=page_data["page_number"],
+                        text=page_data["text"],
+                        summary=page_data["summary"],
+                        image_base64=page_data.get("image_base64"),
+                        narration_audio_base64=page_data.get("narration_audio_base64"),
+                    ).model_dump()
+                )
+                # Persist to Firestore
+                if user_id:
+                    try:
+                        await firestore_service.save_story(user_id, story_state)
+                    except Exception as save_err:
+                        logger.warning("Firestore save failed: %s", save_err)
+
+        page_poll_task = asyncio.create_task(consume_page_queue())
 
         # --- Message receive + agent input loop ---
         while True:
@@ -257,6 +273,8 @@ async def story_websocket(websocket: WebSocket):
 
                 elif msg_type == WSMessageType.AUDIO_CHUNK:
                     # Audio payload as base64 (legacy fallback)
+                    if not audio_gate_open:
+                        continue  # drop audio during tool calls
                     audio_b64 = data.get("audio_base64", "")
                     if audio_b64:
                         try:
@@ -277,9 +295,11 @@ async def story_websocket(websocket: WebSocket):
 
             elif "bytes" in message:
                 # Send raw binary PCM audio directly to Gemini Live API
-                live_queue.send_realtime(
-                    types.Blob(mime_type=AUDIO_MIME_TYPE, data=message["bytes"])
-                )
+                # BUT only if the audio gate is open (not during tool calls)
+                if audio_gate_open:
+                    live_queue.send_realtime(
+                        types.Blob(mime_type=AUDIO_MIME_TYPE, data=message["bytes"])
+                    )
 
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected (session=%s)", session_id)
@@ -294,8 +314,13 @@ async def story_websocket(websocket: WebSocket):
                 ).model_dump()
             )
     finally:
+        if "page_poll_task" in locals() and page_poll_task:
+            page_poll_task.cancel()
         if "agent_task" in locals() and agent_task:
             agent_task.cancel()
+        # Unregister the page queue
+        if "story_state_key" in locals():
+            unregister_page_queue(story_state_key)
         obs_metrics.active_websockets.dec()
         if session_id:
             logger.info("Cleaning up session %s", session_id)

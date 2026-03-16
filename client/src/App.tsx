@@ -47,43 +47,41 @@ export default function App() {
   const [storyStyle, setStoryStyle] = useState('');
   const [agentText, setAgentText] = useState('');
 
-  // Audio Playback
+  // Audio Playback — gapless scheduling for smooth streaming
   const playQueueRef = useRef<{buffer: ArrayBuffer}[]>([]);
-  const isPlayingRef = useRef(false);
   const playContextRef = useRef<AudioContext | null>(null);
+  const nextPlayTimeRef = useRef(0);
 
-  const processAudioQueue = async () => {
-    if (isPlayingRef.current || playQueueRef.current.length === 0) return;
-    isPlayingRef.current = true;
+  const processAudioQueue = () => {
+    if (playQueueRef.current.length === 0) return;
 
     if (!playContextRef.current) {
       playContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
         sampleRate: 24000,
       });
+      nextPlayTimeRef.current = playContextRef.current.currentTime;
     }
 
-    try {
+    const ctx = playContextRef.current;
+
+    // Schedule all queued chunks back-to-back for gapless playback
+    while (playQueueRef.current.length > 0) {
       const { buffer } = playQueueRef.current.shift()!;
       const pcm16 = new Int16Array(buffer);
-      const audioBuffer = playContextRef.current.createBuffer(1, pcm16.length, 24000);
+      const audioBuffer = ctx.createBuffer(1, pcm16.length, 24000);
       const channelData = audioBuffer.getChannelData(0);
       for (let i = 0; i < pcm16.length; i++) {
         channelData[i] = pcm16[i] / 32768.0;
       }
 
-      const source = playContextRef.current.createBufferSource();
+      const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
-      source.connect(playContextRef.current.destination);
-      
-      source.onended = () => {
-        isPlayingRef.current = false;
-        processAudioQueue();
-      };
-      source.start();
-    } catch (err) {
-      console.error("Playback error", err);
-      isPlayingRef.current = false;
-      processAudioQueue();
+      source.connect(ctx.destination);
+
+      // Schedule at the end of the previous chunk (gapless)
+      const startTime = Math.max(ctx.currentTime, nextPlayTimeRef.current);
+      source.start(startTime);
+      nextPlayTimeRef.current = startTime + audioBuffer.duration;
     }
   };
 

@@ -1,7 +1,7 @@
 # StoryForge — Progress Tracker
 
 ## Current Task
-E2E Pipeline verification & sidebar feature
+Fix Live Agent audio latency and page generation pipeline
 
 ## Progress
 - [x] Backend scaffold (PR #1 on `feature/backend-scaffold`)
@@ -53,7 +53,31 @@ E2E Pipeline verification & sidebar feature
 - [x] **CRITICAL FIX**: `quill.py` — model back to `gemini-2.5-flash` (supports tool calling via standard runner)
 - [x] **E2E VERIFIED**: Full pipeline works — text→agent→tools→StoryWriter→Imagen→page update (8/9 checks pass)
 
+### Live Agent Audio Session (2026-03-16)
+- [x] **ARCH FIX**: Replaced `tool_context.state` writes in background task with `asyncio.Queue` per-session (tool_context invalid after function returns)
+- [x] **ARCH FIX**: Stripped `image_base64` and `narration_audio_base64` from `story_state` Pages to keep ADK session lean
+- [x] **BUG FIX**: Queue key mismatch — changed from `str(id(story_state))` to stable `session_id` (ADK deserializes objects, changing Python `id()`)
+- [x] **BUG FIX**: Audio gate — drops mic audio during tool calls to prevent Live API `1008 Operation not implemented` race condition
+- [x] **VERIFIED**: Background page generation pipeline works (StoryWriter → Imagen → narration all complete)
+- [ ] **REMAINING**: Agent still slow after ~3 inputs — likely Live API session context growth from accumulated audio/event history
+
+## Known Issues (For Next Session)
+1. **Agent response latency grows after ~3 inputs**: Even after stripping binary data from session state, the Live API session context still grows with audio events. Possible solutions:
+   - Try `gemini-2.0-flash-live-001` model (reported to handle audio+tools better)
+   - Implement session truncation (limit event history)
+   - Consider splitting into fresh sessions after N turns
+   - Investigate if ADK stores raw audio in session events
+2. **TTS narration may 404**: `gemini-2.5-flash-tts-preview` model may need version verification
+3. **Imagen `negative_prompt` parameter**: Not supported in Gemini API, but falls back to Gemini image gen successfully
+
+## Architecture Notes (Live Agent)
+- `quill.py`: Tools return immediately, spawn `asyncio.create_task()` for heavy pipeline work
+- `_page_queues`: Per-session `asyncio.Queue` keyed by `session_id` for pushing completed pages
+- `ws.py`: `consume_page_queue()` awaits pages and sends `PageUpdateMessage` to frontend
+- `ws.py`: `audio_gate_open` flag drops mic audio during tool execution to prevent 1008 race condition
+- `story_state` Pages store `image_base64=None` to keep ADK session lean; binary data flows only through the queue
+
 ## Next Steps
-- [ ] Fix TTS narration (gemini-2.5-flash-tts-preview may need model verification)
-- [ ] Add Web Speech API for browser-based voice input (transcribe → send as text)
+- [ ] Fix agent response latency (see Known Issues #1)
+- [ ] Add Web Speech API for browser-based voice input
 - [ ] Push to repo and test with teammates

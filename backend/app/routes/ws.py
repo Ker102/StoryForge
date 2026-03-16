@@ -289,6 +289,8 @@ async def story_websocket(websocket: WebSocket):
 
         async def consume_page_queue():
             """Await completed pages from background generation tasks."""
+            from app.models.story import Page
+
             while True:
                 page_data = await page_queue.get()  # blocks until a page is ready
                 page_num = page_data["page_number"]
@@ -307,6 +309,28 @@ async def story_websocket(websocket: WebSocket):
                 ).model_dump()
                 await safe_send(msg)
                 logger.info("Page %d sent to frontend via WebSocket", page_num)
+
+                # Sync page into ws.py's story_state (ADK tool uses a different copy)
+                # This ensures save_story gets the actual page data.
+                already_has = any(p.number == page_num for p in story_state.pages)
+                if not already_has:
+                    story_state.pages.append(Page(
+                        number=page_num,
+                        text=page_data["text"],
+                        summary=page_data.get("summary", ""),
+                        scene_description=page_data.get("scene_description", ""),
+                        image_url=page_data.get("image_url"),
+                        narration_url=page_data.get("narration_url"),
+                    ))
+                    # Auto-generate title from first page summary
+                    if page_num == 1 and not story_state.title:
+                        summary = page_data.get("summary", "")
+                        story_state.title = summary[:60] if summary else (story_state.seed[:60] or "My Story")
+                    logger.info(
+                        "Synced page %d into ws story_state (total pages: %d)",
+                        page_num, len(story_state.pages),
+                    )
+
                 # Persist to Firestore
                 if user_id:
                     try:

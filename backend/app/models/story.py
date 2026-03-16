@@ -76,6 +76,8 @@ class Page(BaseModel):
     scene_description: str = ""
     image_base64: str | None = None
     narration_audio_base64: str | None = None
+    image_url: str | None = None
+    narration_url: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -109,6 +111,7 @@ class StoryState(BaseModel):
     """
 
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str = ""
     seed: str = ""
     style: VisualStyle = VisualStyle.WATERCOLOUR
     age_setting: AgeSetting = AgeSetting.CHILDREN_5_8

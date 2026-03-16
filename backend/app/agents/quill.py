@@ -212,7 +212,33 @@ async def _generate_page_background(
             logger.error("Narration failed: %s", narration_base64)
             narration_base64 = None
 
-        # Step 3: Update story state (WITHOUT binary data to keep session lean)
+        # Step 3: Upload media to Firebase Storage (non-blocking, best-effort)
+        image_url = None
+        narration_url = None
+        try:
+            from app.services import storage_service
+            import base64 as b64_mod
+
+            if image_base64 and isinstance(image_base64, str):
+                try:
+                    image_url = await storage_service.upload_image(
+                        story_state.session_id, page_number, b64_mod.b64decode(image_base64)
+                    )
+                except Exception as img_err:
+                    logger.warning("Image upload failed: %s", img_err)
+
+            if narration_base64 and isinstance(narration_base64, str):
+                try:
+                    narration_url = await storage_service.upload_audio(
+                        story_state.session_id, page_number, b64_mod.b64decode(narration_base64)
+                    )
+                except Exception as audio_err:
+                    logger.warning("Audio upload failed: %s", audio_err)
+
+        except Exception as upload_err:
+            logger.warning("Firebase Storage upload error: %s", upload_err)
+
+        # Step 4: Update story state (WITHOUT binary data to keep session lean)
         new_page = Page(
             number=page_number,
             text=page_text,
@@ -222,8 +248,15 @@ async def _generate_page_background(
             # the ADK session and slows down the Live API dramatically.
             image_base64=None,
             narration_audio_base64=None,
+            image_url=image_url,
+            narration_url=narration_url,
         )
         story_state.pages.append(new_page)
+
+        # Auto-generate title from first page
+        if page_number == 1 and not story_state.title:
+            summary = writer_result.get("summary", "")
+            story_state.title = summary[:60] if summary else (story_state.seed[:60] or "My Story")
 
         # Deduplicate characters
         existing_names = {c.name.lower().strip() for c in story_state.characters}
@@ -343,44 +376,19 @@ def build_quill_agent(story_state: StoryState) -> Agent:
     story_context = story_state.get_live_summary()
     profile = story_state.age_profile
 
-    instruction = f"""You are Quill, a warm, enthusiastic, and playful creative companion \
-who helps children create their very own storybooks. You are like a fun art teacher \
-who gets genuinely excited about every idea.
+    # Keep instruction SHORT — every token counts in the Live API context window.
+    instruction = f"""You are Quill, a warm and playful creative companion helping kids create storybooks.
 
-YOUR ROLE:
-- You are a CONVERSATIONAL COMPANION, not a narrator. You do NOT read stories aloud.
-- You talk WITH the user about their story ideas, ask engaging follow-up questions, \
-and help them shape their creative vision.
-- When the user has given you enough detail for a page, you call the \
-generate_story_page tool to create it. The story text and illustrations are \
-displayed visually on their screen — you don't need to read them.
-- After a page is generated, react with enthusiasm ("Oh wow! Look at that! \
-The illustration turned out amazing!") and ask what should happen next.
+ROLE: Talk WITH the user about story ideas. Ask fun follow-up questions. When they give enough detail for a page, call generate_story_page. React with excitement after pages are generated. Keep responses to 2-3 sentences.
 
-YOUR PERSONALITY:
-- Warm and encouraging — every idea is a great idea
-- Curious — ask "what if" questions to spark creativity
-- Playful — use fun language appropriate for {profile["label"]}
-- Gently guiding — help shape the story without dominating
-- Brief — keep your responses short and conversational (2-3 sentences max)
+PERSONALITY: Encouraging, curious ("what if...?"), playful for {profile["label"]} age group.
 
-CONVERSATION GUIDELINES:
-- When the user first speaks, greet them warmly and ask about their story idea
-- Ask clarifying questions: "What does your character look like?", \
-"Is the forest magical or spooky?", "What happens when they meet?"
-- Confirm before generating: "That sounds awesome! Let me make that page for you!"
-- After generating, ask about the next page naturally
-- If the user seems done, gently ask: "Should we wrap up the story, \
-or is there more adventure to come?"
-- Adapt your vocabulary to match the {profile["label"]} age group
+TOOLS:
+- generate_story_page(user_direction): Call when user describes enough for a page. Summarize their idea clearly.
+- finish_story(ending_direction): Call when user wants to end the story.
+Do NOT call tools speculatively — only on clear user direction.
 
-TOOL USAGE:
-- Call generate_story_page when the user has described enough for a new page
-- In the user_direction field, summarize what the user wants clearly
-- Call finish_story when the user wants to end the book
-- Do NOT call tools speculatively — only when the user has given clear direction
-
-CURRENT STORY STATE:
+STORY STATE:
 {story_context}
 """
 
@@ -390,3 +398,4 @@ CURRENT STORY STATE:
         instruction=instruction,
         tools=[generate_story_page, finish_story],
     )
+

@@ -1,7 +1,7 @@
 # StoryForge — Progress Tracker
 
 ## Current Task
-Fix Live Agent audio latency and page generation pipeline
+Verify Live Agent context compression fix and sidebar page delivery
 
 ## Progress
 - [x] Backend scaffold (PR #1 on `feature/backend-scaffold`)
@@ -61,14 +61,26 @@ Fix Live Agent audio latency and page generation pipeline
 - [x] **VERIFIED**: Background page generation pipeline works (StoryWriter → Imagen → narration all complete)
 - [ ] **REMAINING**: Agent still slow after ~3 inputs — likely Live API session context growth from accumulated audio/event history
 
+### Context Compression Fix (2026-03-16 session 2)
+- [x] **FIX**: `ws.py` — Added `context_window_compression=ContextWindowCompressionConfig(trigger_tokens=120k, sliding_window=SlidingWindow(target_tokens=60k))` to RunConfig
+- [x] **FIX**: `ws.py` — Added `session_resumption=SessionResumptionConfig(transparent=True)` for Live API session recovery
+- [x] **FIX**: `ws.py` — Added `tool_thread_pool_config=ToolThreadPoolConfig(max_workers=4)` for responsive audio loop
+- [x] **FIX**: `ws.py` — Added diagnostic logging in `consume_page_queue()` (log page arrival + send-to-frontend)
+- [x] **FIX**: `quill.py` — Trimmed agent instruction from ~1800 to ~600 chars to conserve context budget
+- [x] **DEBUG**: `websocket.ts` + `App.tsx` — Added console.log for page_update flow tracing
+- [ ] **REMAINING**: Manual test with 5+ voice inputs to confirm fix
+
+### Firebase Persistence Pipeline Fix (2026-03-16 session 2)
+- [x] **FIX**: `story.py` — Added `title` field to `StoryState`, `image_url`/`narration_url` to `Page`
+- [x] **FIX**: `firestore_service.py` — Fixed `_story_to_doc()` to use actual model fields (not hasattr)
+- [x] **FIX**: `quill.py` — Upload image/audio to Firebase Storage in background pipeline
+- [x] **FIX**: `quill.py` — Auto-generate story title from first page summary
+- [x] **VERIFIED**: Firestore connects to `projects/storyforgegeminilive/databases/(default)`
+- [x] **VERIFIED**: Storage bucket `storyforgegeminilive.firebasestorage.app` accessible
+
 ## Known Issues (For Next Session)
-1. **Agent response latency grows after ~3 inputs**: Even after stripping binary data from session state, the Live API session context still grows with audio events. Possible solutions:
-   - Try `gemini-2.0-flash-live-001` model (reported to handle audio+tools better)
-   - Implement session truncation (limit event history)
-   - Consider splitting into fresh sessions after N turns
-   - Investigate if ADK stores raw audio in session events
-2. **TTS narration may 404**: `gemini-2.5-flash-tts-preview` model may need version verification
-3. **Imagen `negative_prompt` parameter**: Not supported in Gemini API, but falls back to Gemini image gen successfully
+1. **TTS narration may 404**: `gemini-2.5-flash-tts-preview` model may need version verification
+2. **Imagen `negative_prompt` parameter**: Not supported in Gemini API, but falls back to Gemini image gen successfully
 
 ## Architecture Notes (Live Agent)
 - `quill.py`: Tools return immediately, spawn `asyncio.create_task()` for heavy pipeline work
@@ -77,7 +89,11 @@ Fix Live Agent audio latency and page generation pipeline
 - `ws.py`: `audio_gate_open` flag drops mic audio during tool execution to prevent 1008 race condition
 - `story_state` Pages store `image_base64=None` to keep ADK session lean; binary data flows only through the queue
 
+- `ws.py`: `RunConfig` uses `context_window_compression` (SlidingWindow 120k trigger / 60k target) + transparent `session_resumption` + `tool_thread_pool_config`
+
 ## Next Steps
-- [ ] Fix agent response latency (see Known Issues #1)
+- [ ] Manual E2E test: 5+ voice inputs, verify agent stays responsive
+- [ ] Confirm page_update messages arrive in browser DevTools console
+- [ ] Verify sidebar shows pages in real-time
 - [ ] Add Web Speech API for browser-based voice input
 - [ ] Push to repo and test with teammates

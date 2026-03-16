@@ -174,6 +174,9 @@ export async function connectToStory(
             break;
 
           case "page_update":
+            console.log(
+              `[WS] page_update received: page=${data.page_number}, has_image=${!!data.image_base64}, text_len=${(data.text || "").length}`
+            );
             handlers.onPageUpdate?.({
               page_number: data.page_number,
               text: data.text,

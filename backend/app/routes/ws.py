@@ -16,7 +16,7 @@ import traceback as tb_module
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google.adk.agents.live_request_queue import LiveRequestQueue
-from google.adk.agents.run_config import RunConfig, StreamingMode
+from google.adk.agents.run_config import RunConfig, StreamingMode, ToolThreadPoolConfig
 from google.adk.events import Event, EventActions  # noqa: F401 (used by finish_story state check)
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -146,11 +146,20 @@ async def story_websocket(websocket: WebSocket):
         live_queue = LiveRequestQueue()
 
         # RunConfig for native-audio model: BIDI streaming with audio responses
+        # context_window_compression: auto-trim old context when token budget fills
+        # session_resumption: transparently reconnect if Live API session resets
+        # tool_thread_pool_config: run tools in bg threads, keep audio loop responsive
         run_config = RunConfig(
             streaming_mode=StreamingMode.BIDI,
             response_modalities=["AUDIO"],
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
+            context_window_compression=types.ContextWindowCompressionConfig(
+                trigger_tokens=120_000,
+                sliding_window=types.SlidingWindow(target_tokens=60_000),
+            ),
+            session_resumption=types.SessionResumptionConfig(transparent=True),
+            tool_thread_pool_config=ToolThreadPoolConfig(max_workers=4),
         )
 
         async def run_agent_loop():
@@ -224,16 +233,22 @@ async def story_websocket(websocket: WebSocket):
             """Await completed pages from background generation tasks."""
             while True:
                 page_data = await page_queue.get()  # blocks until a page is ready
-                await safe_send(
-                    PageUpdateMessage(
-                        session_id=session_id,
-                        page_number=page_data["page_number"],
-                        text=page_data["text"],
-                        summary=page_data["summary"],
-                        image_base64=page_data.get("image_base64"),
-                        narration_audio_base64=page_data.get("narration_audio_base64"),
-                    ).model_dump()
+                page_num = page_data["page_number"]
+                has_img = page_data.get("image_base64") is not None
+                logger.info(
+                    "Page %d received from queue (has_image=%s, text_len=%d) — sending to frontend",
+                    page_num, has_img, len(page_data.get("text", "")),
                 )
+                msg = PageUpdateMessage(
+                    session_id=session_id,
+                    page_number=page_num,
+                    text=page_data["text"],
+                    summary=page_data["summary"],
+                    image_base64=page_data.get("image_base64"),
+                    narration_audio_base64=page_data.get("narration_audio_base64"),
+                ).model_dump()
+                await safe_send(msg)
+                logger.info("Page %d sent to frontend via WebSocket", page_num)
                 # Persist to Firestore
                 if user_id:
                     try:

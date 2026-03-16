@@ -124,6 +124,7 @@ export default function App() {
             setTimeout(() => setCurrentPage('speak'), 1500);
           },
           onPageUpdate: (page) => {
+            console.log(`[App] Page ${page.page_number} added to state (has_image=${!!page.image_base64})`);
             setGeneratedPages(prev => [...prev, page]);
             setStatusMessage(`Page ${page.page_number} ready!`);
           },

@@ -341,9 +341,7 @@ async def story_websocket(websocket: WebSocket):
                         ))
 
                 elif msg_type == WSMessageType.AUDIO_CHUNK:
-                    # Audio payload as base64 (legacy fallback)
-                    if not audio_gate_open:
-                        continue  # drop audio during tool calls
+                    # Audio payload as base64 (legacy fallback) — always forward
                     audio_b64 = data.get("audio_base64", "")
                     if audio_b64:
                         try:

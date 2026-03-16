@@ -147,8 +147,8 @@ async def story_websocket(websocket: WebSocket):
 
         # RunConfig for native-audio model: BIDI streaming with audio responses
         # context_window_compression: auto-trim old context when token budget fills
-        # session_resumption: transparently reconnect if Live API session resets
-        # tool_thread_pool_config: run tools in bg threads, keep audio loop responsive
+        # NOTE: session_resumption and tool_thread_pool_config removed —
+        #       they caused the native-audio model to stop processing audio input.
         run_config = RunConfig(
             streaming_mode=StreamingMode.BIDI,
             response_modalities=["AUDIO"],
@@ -158,69 +158,99 @@ async def story_websocket(websocket: WebSocket):
                 trigger_tokens=120_000,
                 sliding_window=types.SlidingWindow(target_tokens=60_000),
             ),
-            session_resumption=types.SessionResumptionConfig(transparent=True),
-            tool_thread_pool_config=ToolThreadPoolConfig(max_workers=4),
+            save_input_blobs_as_artifacts=False,
+            save_live_audio=False,
         )
 
         async def run_agent_loop():
-            """Background task: runs the live bidi-streaming agent loop."""
-            nonlocal audio_gate_open
-            try:
-                async for event in runner.run_live(
-                    user_id=session_id,
-                    session_id=adk_session.id,
-                    live_request_queue=live_queue,
-                    run_config=run_config,
-                ):
-                    # Detect tool call events to gate audio input
-                    # ADK events have .actions with tool_code_execution or
-                    # function_calls in .content.parts
-                    if event.content and event.content.parts:
-                        has_function_call = any(
-                            getattr(part, "function_call", None) is not None
-                            for part in event.content.parts
-                        )
-                        has_function_response = any(
-                            getattr(part, "function_response", None) is not None
-                            for part in event.content.parts
-                        )
-                        if has_function_call:
-                            audio_gate_open = False
-                            logger.info("Audio gate CLOSED (tool call in progress)")
-                        if has_function_response:
-                            audio_gate_open = True
-                            logger.info("Audio gate OPEN (tool call complete)")
+            """Background task: runs the live bidi-streaming agent loop.
 
-                    # Forward audio + text from agent response
-                    if event.content and event.content.parts:
-                        for part in event.content.parts:
-                            # Audio data — forward immediately
-                            if getattr(part, "inline_data", None) and getattr(part.inline_data, "data", None):
-                                # Re-open gate when agent starts speaking again
-                                if not audio_gate_open:
-                                    audio_gate_open = True
-                                    logger.info("Audio gate OPEN (agent audio resumed)")
-                                async with send_lock:
-                                    await websocket.send_bytes(part.inline_data.data)
-                            # Text responses (transcriptions or text-only)
-                            elif getattr(part, "text", None):
-                                await safe_send(
-                                    AgentTextMessage(
-                                        session_id=session_id,
-                                        text=part.text,
-                                    ).model_dump()
-                                )
+            Wraps run_live in a retry loop — the Live API may disconnect with
+            a 1008 error when audio races with tool execution. On error we
+            recreate the LiveRequestQueue and restart.
+            """
+            nonlocal audio_gate_open, live_queue
+            max_retries = 5
+            retry_count = 0
 
-            except Exception as e:
-                tb_str = tb_module.format_exc()
-                logger.error("Agent live loop error: %s\n%s", e, tb_str)
-                await safe_send(
-                    StatusMessage(
-                        session_id=session_id,
-                        type=WSMessageType.ERROR,
-                        message=f"Quill error: {type(e).__name__}: {e}",
-                    ).model_dump()
-                )
+            while retry_count < max_retries:
+                try:
+                    async for event in runner.run_live(
+                        user_id=session_id,
+                        session_id=adk_session.id,
+                        live_request_queue=live_queue,
+                        run_config=run_config,
+                    ):
+                        # Reset retry count on successful events
+                        retry_count = 0
+
+                        # Detect tool call events to gate audio input
+                        if event.content and event.content.parts:
+                            has_function_call = any(
+                                getattr(part, "function_call", None) is not None
+                                for part in event.content.parts
+                            )
+                            has_function_response = any(
+                                getattr(part, "function_response", None) is not None
+                                for part in event.content.parts
+                            )
+                            if has_function_call:
+                                audio_gate_open = False
+                                logger.info("Audio gate CLOSED (tool call in progress)")
+                            if has_function_response:
+                                audio_gate_open = True
+                                logger.info("Audio gate OPEN (tool call complete)")
+
+                        # Forward audio + text from agent response
+                        if event.content and event.content.parts:
+                            for part in event.content.parts:
+                                # Audio data — forward immediately
+                                if getattr(part, "inline_data", None) and getattr(part.inline_data, "data", None):
+                                    # Re-open gate when agent starts speaking again
+                                    if not audio_gate_open:
+                                        audio_gate_open = True
+                                        logger.info("Audio gate OPEN (agent audio resumed)")
+                                    async with send_lock:
+                                        await websocket.send_bytes(part.inline_data.data)
+                                # Text responses (transcriptions or text-only)
+                                elif getattr(part, "text", None):
+                                    await safe_send(
+                                        AgentTextMessage(
+                                            session_id=session_id,
+                                            text=part.text,
+                                        ).model_dump()
+                                    )
+
+                    # run_live ended normally (session completed)
+                    logger.info("Agent live loop ended normally")
+                    break
+
+                except Exception as e:
+                    retry_count += 1
+                    error_str = str(e)
+                    is_1008 = "1008" in error_str
+
+                    if is_1008 and retry_count < max_retries:
+                        logger.warning(
+                            "1008 error (audio/tool race) — retrying (%d/%d): %s",
+                            retry_count, max_retries, e,
+                        )
+                        # Re-open audio gate and create fresh queue
+                        audio_gate_open = True
+                        live_queue = LiveRequestQueue()
+                        await asyncio.sleep(1)  # brief pause before retry
+                        continue
+                    else:
+                        tb_str = tb_module.format_exc()
+                        logger.error("Agent live loop error: %s\n%s", e, tb_str)
+                        await safe_send(
+                            StatusMessage(
+                                session_id=session_id,
+                                type=WSMessageType.ERROR,
+                                message=f"Quill error: {type(e).__name__}: {e}",
+                            ).model_dump()
+                        )
+                        break
 
         agent_task = asyncio.create_task(run_agent_loop())
 

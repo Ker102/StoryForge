@@ -1,18 +1,28 @@
-import { useState, useEffect } from 'react';
-import { X, RefreshCw, Check } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { X, RefreshCw, Check, BookOpen, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import type { StorySession } from '../lib/websocket';
+import type { GeneratedPage } from '../App';
 
 interface SpeakScreenProps {
   session: StorySession | null;
+  pages: GeneratedPage[];
+  agentText: string;
   onClose: () => void;
   onSubmit: () => void;
 }
 
-export default function SpeakScreen({ session, onClose, onSubmit }: SpeakScreenProps) {
+export default function SpeakScreen({ session, pages, agentText, onClose, onSubmit }: SpeakScreenProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const pagesEndRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     // Start recording as soon as this screen mounts
     if (session) {
-      session.startRecording().catch(console.error);
+      session.startRecording()
+        .then(() => setIsRecording(true))
+        .catch(console.error);
     }
     return () => {
       // Ensure we stop if unmounted
@@ -22,17 +32,34 @@ export default function SpeakScreen({ session, onClose, onSubmit }: SpeakScreenP
     };
   }, [session]);
 
+  // Auto-scroll to latest page in sidebar
+  useEffect(() => {
+    if (sidebarOpen && pagesEndRef.current) {
+      pagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [pages, sidebarOpen]);
+
+  // Auto-open sidebar when first page arrives
+  useEffect(() => {
+    if (pages.length === 1 && !sidebarOpen) {
+      setSidebarOpen(true);
+    }
+  }, [pages.length]);
+
   const handleClear = () => {
-    // Basic implementation of clearing
     if (session) {
       session.stopRecording();
-      session.startRecording().catch(console.error);
+      setIsRecording(false);
+      session.startRecording()
+        .then(() => setIsRecording(true))
+        .catch(console.error);
     }
   };
 
   const handleSubmit = () => {
     if (session) {
       session.stopRecording();
+      setIsRecording(false);
       session.sendText(''); // Send empty text to trigger audio processing turn
     }
     onSubmit();
@@ -41,82 +68,272 @@ export default function SpeakScreen({ session, onClose, onSubmit }: SpeakScreenP
   const handleClose = () => {
     if (session) {
       session.stopRecording();
+      setIsRecording(false);
     }
     onClose();
   };
 
   return (
-    <div className="min-h-screen bg-background-dark flex flex-col relative overflow-hidden">
-      {/* Background glow effects */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-primary/20 blur-[100px] rounded-full mix-blend-screen pointer-events-none" />
+    <div className="min-h-screen bg-[#0a0a0f] flex relative overflow-hidden">
 
-      {/* Header */}
-      <header className="flex justify-between items-center p-6 z-10 sticky top-0">
-        <span className="text-primary font-bold uppercase tracking-widest text-xs flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          Listening...
-        </span>
-        <button 
-          onClick={handleClose}
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-        >
-          <X size={20} className="text-white/70" />
-        </button>
-      </header>
+      {/* ─── Main Speaking Area ─── */}
+      <div className="flex-1 flex flex-col relative z-10 transition-all duration-300">
+        
+        {/* Background glow effects */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-yellow-500/10 blur-[120px] rounded-full mix-blend-screen pointer-events-none" />
+        <div className="absolute bottom-1/4 right-0 w-[300px] h-[300px] bg-amber-600/8 blur-[100px] rounded-full pointer-events-none" />
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center p-6 z-10 gap-12">
-        {/* Animated Mic Icon */}
-        <div className="relative w-32 h-32 flex items-center justify-center">
-          <div className="absolute inset-0 border border-primary/30 rounded-full animate-[ping_2s_ease-out_infinite]" />
-          <div className="absolute inset-4 border border-primary/50 rounded-full animate-[ping_2.5s_ease-out_infinite]" />
-          <div className="absolute inset-8 border border-primary/80 rounded-full animate-[ping_3s_ease-out_infinite]" />
-          <div className="absolute inset-10 bg-primary/20 rounded-full blur-md" />
-          <div className="relative z-10 text-5xl">🎙️</div>
-        </div>
-
-        {/* Waveform Fake */}
-        <div className="flex items-center gap-1 h-12">
-          {Array.from({ length: 9 }).map((_, i) => (
-            <div 
-              key={i} 
-              className="w-1.5 bg-primary/50 rounded-full"
-              style={{
-                height: `${Math.random() * 80 + 20}%`,
-                animation: `bounce 1.${i % 3 + 1}s infinite ease-in-out alternate`,
-                animationDelay: `${i * 0.1}s`
-              }}
+        {/* Header */}
+        <header className="flex justify-between items-center p-5 z-10 sticky top-0 backdrop-blur-sm bg-[#0a0a0f]/60 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <motion.div
+              animate={{ scale: isRecording ? [1, 1.3, 1] : 1 }}
+              transition={{ duration: 1.5, repeat: isRecording ? Infinity : 0 }}
+              className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"
             />
-          ))}
-        </div>
-
-        {/* Status Box */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 w-full max-w-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Audio Input Active</span>
+            <span className="text-yellow-300/90 font-bold uppercase tracking-[0.2em] text-xs">
+              {isRecording ? 'Listening...' : 'Connecting mic...'}
+            </span>
           </div>
-          <p className="text-lg font-medium leading-relaxed">
-            Speak clearly into your microphone to guide the story...
-          </p>
-        </div>
-      </main>
+          <div className="flex gap-2">
+            {/* Story sidebar toggle */}
+            <motion.button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="relative flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20 transition-colors"
+            >
+              <BookOpen size={16} className="text-yellow-300" />
+              <span className="text-yellow-200 text-xs font-semibold tracking-wide">Story</span>
+              {pages.length > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-yellow-500 text-[10px] font-bold text-black flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.5)]">
+                  {pages.length}
+                </span>
+              )}
+            </motion.button>
+            <button
+              onClick={handleClose}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+            >
+              <X size={18} className="text-white/60" />
+            </button>
+          </div>
+        </header>
 
-      {/* Action Buttons */}
-      <footer className="p-6 mb-8 flex gap-4 z-10">
-        <button 
-          onClick={handleClear}
-          className="flex-1 py-4 rounded-xl bg-white/5 border border-white/10 font-bold active:scale-95 transition-all flex items-center justify-center gap-2"
+        {/* Main Content */}
+        <main className="flex-1 flex flex-col items-center justify-center p-6 z-10 gap-8">
+          
+          {/* Animated Mic Visualization */}
+          <div className="relative w-36 h-36 flex items-center justify-center">
+            {isRecording && (
+              <>
+                <motion.div
+                  className="absolute inset-0 border border-yellow-400/20 rounded-full"
+                  animate={{ scale: [1, 1.5], opacity: [0.4, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+                />
+                <motion.div
+                  className="absolute inset-2 border border-yellow-400/30 rounded-full"
+                  animate={{ scale: [1, 1.4], opacity: [0.5, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.3 }}
+                />
+                <motion.div
+                  className="absolute inset-4 border border-yellow-400/40 rounded-full"
+                  animate={{ scale: [1, 1.3], opacity: [0.6, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.6 }}
+                />
+              </>
+            )}
+            <div className="absolute inset-8 bg-yellow-500/15 rounded-full blur-md" />
+            <div className="relative z-10 text-5xl">🎙️</div>
+          </div>
+
+          {/* Waveform Visualization */}
+          <div className="flex items-center gap-1.5 h-14">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <motion.div
+                key={i}
+                className="w-1.5 bg-gradient-to-t from-yellow-600/60 to-yellow-300/80 rounded-full"
+                animate={isRecording ? {
+                  height: [`${20 + Math.random() * 20}%`, `${50 + Math.random() * 50}%`, `${20 + Math.random() * 20}%`]
+                } : { height: '20%' }}
+                transition={{
+                  duration: 0.6 + Math.random() * 0.4,
+                  repeat: isRecording ? Infinity : 0,
+                  ease: "easeInOut",
+                  delay: i * 0.05
+                }}
+                style={{ minHeight: 8, maxHeight: 56 }}
+              />
+            ))}
+          </div>
+
+          {/* Agent text / conversation bubble */}
+          <AnimatePresence mode="popLayout">
+            {agentText && (
+              <motion.div
+                key={agentText.slice(0, 30)}
+                initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-white/5 border border-yellow-500/15 rounded-2xl p-5 w-full max-w-md backdrop-blur-md"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles size={14} className="text-yellow-400" />
+                  <span className="text-[11px] font-bold text-yellow-400/80 uppercase tracking-[0.15em]">Quill says</span>
+                </div>
+                <p className="text-sm text-yellow-100/80 leading-relaxed font-medium">
+                  {agentText}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Status hint */}
+          <div className="bg-white/5 border border-white/8 rounded-2xl p-5 w-full max-w-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.15em]">Audio Input Active</span>
+            </div>
+            <p className="text-sm text-white/60 leading-relaxed">
+              Speak clearly into your microphone to guide the story. Quill will help shape your ideas into pages.
+            </p>
+          </div>
+        </main>
+
+        {/* Action Buttons */}
+        <footer className="p-5 pb-8 flex gap-3 z-10">
+          <motion.button
+            onClick={handleClear}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex-1 py-3.5 rounded-xl bg-white/5 border border-white/10 font-bold text-sm text-white/70 flex items-center justify-center gap-2 hover:bg-white/10 transition-colors"
+          >
+            <RefreshCw size={16} /> Clear
+          </motion.button>
+          <motion.button
+            onClick={handleSubmit}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex-[2] py-3.5 rounded-xl bg-gradient-to-r from-yellow-600 to-amber-500 text-black font-bold text-sm shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+          >
+            <Check size={16} /> Submit Voice
+          </motion.button>
+        </footer>
+      </div>
+
+      {/* ─── Story Sidebar (slides in from right) ─── */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.aside
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 380, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="relative h-screen border-l border-yellow-500/15 bg-[#0d0d14]/95 backdrop-blur-xl flex flex-col overflow-hidden"
+          >
+            {/* Sidebar Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <BookOpen size={18} className="text-yellow-400" />
+                <h2 className="text-sm font-bold text-yellow-200 tracking-wide">Your Story</h2>
+                <span className="text-[10px] font-mono text-yellow-500/60 bg-yellow-500/10 px-2 py-0.5 rounded-full">
+                  {pages.length} {pages.length === 1 ? 'page' : 'pages'}
+                </span>
+              </div>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+              >
+                <ChevronRight size={14} className="text-white/50" />
+              </button>
+            </div>
+
+            {/* Sidebar Content — scrollable story pages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-yellow-500/20 scrollbar-track-transparent">
+              {pages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center gap-4 py-12">
+                  <motion.div
+                    animate={{ y: [0, -8, 0] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <BookOpen size={40} className="text-yellow-500/30" />
+                  </motion.div>
+                  <p className="text-white/30 text-sm leading-relaxed max-w-[240px]">
+                    Your story pages will appear here as Quill generates them. Start by describing your story idea!
+                  </p>
+                </div>
+              ) : (
+                pages.map((page, idx) => (
+                  <motion.div
+                    key={page.page_number}
+                    initial={{ opacity: 0, x: 30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.1, type: "spring", stiffness: 200 }}
+                    className="group"
+                  >
+                    <div className="bg-white/[0.03] border border-yellow-500/10 rounded-xl overflow-hidden hover:border-yellow-500/25 transition-colors">
+                      {/* Page illustration */}
+                      {page.image_base64 && (
+                        <div className="relative aspect-[16/10] overflow-hidden">
+                          <img
+                            src={`data:image/png;base64,${page.image_base64}`}
+                            alt={`Page ${page.page_number} illustration`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#0d0d14] via-transparent to-transparent" />
+                          <div className="absolute bottom-2 left-3">
+                            <span className="text-[10px] font-bold text-yellow-400/90 bg-black/50 px-2 py-0.5 rounded-full backdrop-blur-sm border border-yellow-500/20">
+                              Page {page.page_number}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Page text */}
+                      <div className="p-4">
+                        {!page.image_base64 && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[10px] font-bold text-yellow-500/70 bg-yellow-500/10 px-2 py-0.5 rounded-full">
+                              Page {page.page_number}
+                            </span>
+                          </div>
+                        )}
+                        <p className="text-xs text-white/60 leading-relaxed line-clamp-4">
+                          {page.text}
+                        </p>
+                        {page.summary && (
+                          <p className="text-[10px] text-yellow-400/40 mt-2 italic">
+                            {page.summary}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+              <div ref={pagesEndRef} />
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar toggle tab (when closed) */}
+      {!sidebarOpen && (
+        <motion.button
+          initial={{ opacity: 0, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          onClick={() => setSidebarOpen(true)}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-yellow-500/10 border border-yellow-500/20 border-r-0 rounded-l-xl px-2 py-6 hover:bg-yellow-500/20 transition-colors group"
         >
-          <RefreshCw size={18} /> Clear
-        </button>
-        <button 
-          onClick={handleSubmit}
-          className="flex-[2] py-4 rounded-xl bg-primary text-black font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-        >
-          <Check size={18} /> Submit Voice
-        </button>
-      </footer>
+          <ChevronLeft size={14} className="text-yellow-400/60 group-hover:text-yellow-300 transition-colors" />
+          {pages.length > 0 && (
+            <span className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-yellow-500 text-[10px] font-bold text-black flex items-center justify-center shadow-[0_0_6px_rgba(234,179,8,0.4)]">
+              {pages.length}
+            </span>
+          )}
+        </motion.button>
+      )}
     </div>
   );
 }

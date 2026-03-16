@@ -12,6 +12,7 @@ import binascii
 import contextlib
 import json
 import logging
+import traceback as tb_module
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google.adk.agents.live_request_queue import LiveRequestQueue
@@ -141,8 +142,8 @@ async def story_websocket(websocket: WebSocket):
         live_queue = LiveRequestQueue()
 
         async def run_agent_loop():
+            """Background task: runs the live bidi-streaming agent loop."""
             try:
-                # The run_live method defaults to AUDIO if response_modalities is None
                 async for event in runner.run_live(
                     user_id=session_id,
                     session_id=adk_session.id,
@@ -156,7 +157,7 @@ async def story_websocket(websocket: WebSocket):
                     # 2. Forward agent text responses
                     if getattr(event, "content", None) and getattr(event.content, "parts", None):
                         for part in event.content.parts:
-                            if part.text:
+                            if getattr(part, "text", None):
                                 await safe_send(
                                     AgentTextMessage(
                                         session_id=session_id,
@@ -164,7 +165,7 @@ async def story_websocket(websocket: WebSocket):
                                     ).model_dump()
                                 )
 
-                    # 3. Check for generated pages
+                    # 3. Check for generated pages in session state
                     current_session = await _session_service.get_session(
                         app_name="storyforge",
                         user_id=session_id,
@@ -206,7 +207,6 @@ async def story_websocket(websocket: WebSocket):
                                 message="Your story is complete! Download it from the export page.",
                             ).model_dump()
                         )
-                        # Clear flag to prevent duplicate messages
                         done_evt = Event(
                             invocation_id="clear_story_complete",
                             author="system",
@@ -215,12 +215,13 @@ async def story_websocket(websocket: WebSocket):
                         await _session_service.append_event(current_session, done_evt)
 
             except Exception as e:
-                logger.error("Agent live loop error: %s", e, exc_info=True)
+                tb_str = tb_module.format_exc()
+                logger.error("Agent live loop error: %s\n%s", e, tb_str)
                 await safe_send(
                     StatusMessage(
                         session_id=session_id,
                         type=WSMessageType.ERROR,
-                        message="Quill encountered an error. Please try again.",
+                        message=f"Quill error: {type(e).__name__}: {e}",
                     ).model_dump()
                 )
 
@@ -249,13 +250,13 @@ async def story_websocket(websocket: WebSocket):
                     # Send text to agent via ADK live queue
                     user_text = data.get("text", "")
                     if user_text:
-                        live_queue.send_content(types.Content(parts=[types.Part(text=user_text)]))
-                    else:
-                        # Empty text signals end of user turn / flush
-                        live_queue.send_activity_end()
+                        live_queue.send_content(types.Content(
+                            role="user",
+                            parts=[types.Part(text=user_text)],
+                        ))
 
                 elif msg_type == WSMessageType.AUDIO_CHUNK:
-                    # Audio payload as base64 legacy fallback
+                    # Audio payload as base64 (legacy fallback)
                     audio_b64 = data.get("audio_base64", "")
                     if audio_b64:
                         try:
@@ -275,7 +276,7 @@ async def story_websocket(websocket: WebSocket):
                     )
 
             elif "bytes" in message:
-                # Send raw binary PCM audio to Gemini
+                # Send raw binary PCM audio directly to Gemini Live API
                 live_queue.send_realtime(
                     types.Blob(mime_type=AUDIO_MIME_TYPE, data=message["bytes"])
                 )
@@ -295,7 +296,6 @@ async def story_websocket(websocket: WebSocket):
     finally:
         if "agent_task" in locals() and agent_task:
             agent_task.cancel()
-        
         obs_metrics.active_websockets.dec()
         if session_id:
             logger.info("Cleaning up session %s", session_id)

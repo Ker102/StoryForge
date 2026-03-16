@@ -11,7 +11,7 @@ const httpScheme = window.location.protocol === "https:" ? "https:" : "http:";
 
 const WS_BASE =
   import.meta.env.VITE_WS_URL ||
-  `${wsScheme}//${window.location.hostname}:8000`;
+  `${wsScheme}//${window.location.hostname}:8001`;
 
 export interface StoryConfig {
   style: string;
@@ -244,7 +244,7 @@ export async function fetchStories(): Promise<
 
   const API_BASE =
     import.meta.env.VITE_API_URL ||
-    `${httpScheme}//${window.location.hostname}:8000`;
+    `${httpScheme}//${window.location.hostname}:8001`;
 
   const res = await fetch(`${API_BASE}/api/stories`, {
     headers: { Authorization: `Bearer ${token}` },

@@ -337,7 +337,7 @@ CURRENT STORY STATE:
 
     return Agent(
         name="quill",
-        model="gemini-2.5-flash",
+        model="gemini-2.5-flash-native-audio-latest",
         instruction=instruction,
         tools=[generate_story_page, finish_story],
     )

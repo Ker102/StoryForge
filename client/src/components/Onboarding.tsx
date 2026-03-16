@@ -36,7 +36,7 @@ export default function Onboarding({ onFinish }: OnboardingProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background-dark">
+    <div className="min-h-screen flex flex-col bg-background-dark max-w-6xl mx-auto w-full">
       <header className="flex justify-end p-6">
         <button type="button" onClick={onFinish} className="text-primary font-bold">Skip</button>
       </header>
@@ -49,8 +49,8 @@ export default function Onboarding({ onFinish }: OnboardingProps) {
             exit={{ opacity: 0, x: -20 }}
             className="w-full max-w-sm"
           >
-            <div className="relative aspect-square mb-12 rounded-3xl overflow-hidden border border-primary/20">
-              <img src={STEPS[step].image} alt="Onboarding" className="w-full h-full object-cover" />
+            <div className="relative aspect-square mb-12 rounded-[2.5rem] overflow-hidden border border-primary/20 shadow-[0_20px_60px_-15px_rgba(13,148,136,0.3)]">
+              <img src={STEPS[step].image} alt="Onboarding" className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" />
             </div>
             <div className="text-center space-y-4">
               <h1 className="text-4xl font-extrabold leading-tight">
@@ -68,10 +68,16 @@ export default function Onboarding({ onFinish }: OnboardingProps) {
             <div key={i} className={`h-1.5 rounded-full transition-all ${i === step ? 'w-8 bg-primary shadow-[0_0_10px_rgba(244,209,37,0.5)]' : 'w-2 bg-slate-800'}`} />
           ))}
         </div>
-        <button type="button" onClick={next} className="w-full max-w-md bg-primary text-slate-900 font-bold py-5 rounded-xl text-lg flex items-center justify-center gap-2">
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          type="button" 
+          onClick={next} 
+          className="w-full max-w-md bg-primary text-slate-900 font-bold py-5 rounded-2xl text-lg flex items-center justify-center gap-2 shadow-xl shadow-primary/20"
+        >
           {step === STEPS.length - 1 ? 'Get Started' : 'Next'}
           <ArrowRight size={20} />
-        </button>
+        </motion.button>
         <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest">Step {step + 1} of {STEPS.length}</p>
       </footer>
     </div>

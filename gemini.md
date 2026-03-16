@@ -1,7 +1,7 @@
 # StoryForge — Progress Tracker
 
 ## Current Task
-Observability pipeline + test suite (new-feature branch)
+E2E Pipeline verification & sidebar feature
 
 ## Progress
 - [x] Backend scaffold (PR #1 on `feature/backend-scaffold`)
@@ -42,11 +42,18 @@ Observability pipeline + test suite (new-feature branch)
 - [x] Frontend bug fix: ReferenceError on session object in `Home.tsx`
 - [x] Frontend bug fix: Microphone button navigation to Speak screen
 - [x] Backend bug fix: Pydantic ValidationError on Character traits (LLM string handling)
+- [x] **FIXED**: WebSocket "Connection failed" error by fixing port 8000 -> 8001 conflict
+- [x] **FIXED**: Frontend `StorySettings` sending incorrect Enum IDs
+- [x] **FIXED**: Loading screen stuck at 5% — rewired navigation flow (session_ready → SpeakScreen)
+- [x] **UI ENHANCEMENT**: Completely overhauled `LoadingScreen.tsx` with Framer Motion
+- [x] **UI FEATURE**: SpeakScreen with toggleable story sidebar (streams pages in real-time)
+- [x] **CRITICAL FIX**: `main.py` — only export GOOGLE_API_KEY (not Firebase vars) to prevent ADK Pydantic crashes
+- [x] **CRITICAL FIX**: `config.py` — added `extra="ignore"` to Settings model_config
+- [x] **CRITICAL FIX**: `ws.py` — switched from `run_live()` to `run_async()` (native-audio models don't support tool calling)
+- [x] **CRITICAL FIX**: `quill.py` — model back to `gemini-2.5-flash` (supports tool calling via standard runner)
+- [x] **E2E VERIFIED**: Full pipeline works — text→agent→tools→StoryWriter→Imagen→page update (8/9 checks pass)
 
 ## Next Steps
-
-- [x] Wire audio bidi-streaming via ADK run_live()
-- [x] Merge PR #10 (Observability & Voice) into `main` and resolve UI redesign conflicts
-- [x] Port audio playback queue to redesigned `App.tsx`
-- [x] Create redesigned `SpeakScreen` for voice steering
-- [x] Wire microphone UI into `StoryReader` for live voice steering
+- [ ] Fix TTS narration (gemini-2.5-flash-tts-preview may need model verification)
+- [ ] Add Web Speech API for browser-based voice input (transcribe → send as text)
+- [ ] Push to repo and test with teammates

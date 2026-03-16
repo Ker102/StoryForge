@@ -1,5 +1,16 @@
 """FastAPI application entrypoint."""
 
+import os
+from dotenv import dotenv_values
+
+# Load .env.storyforge but ONLY export GOOGLE_API_KEY to os.environ.
+# Reason: The ADK's internal Pydantic models use extra="forbid" and crash if
+# they see unexpected env vars like FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, etc.
+# Our own Settings class loads the full file via its env_file config.
+_env_vars = dotenv_values(".env.storyforge")
+if "GOOGLE_API_KEY" in _env_vars:
+    os.environ.setdefault("GOOGLE_API_KEY", _env_vars["GOOGLE_API_KEY"])
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

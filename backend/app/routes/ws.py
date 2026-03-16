@@ -212,15 +212,22 @@ async def story_websocket(websocket: WebSocket):
                                         await websocket.send_bytes(part.inline_data.data)
                                 # Text responses (transcriptions or text-only)
                                 elif getattr(part, "text", None):
-                                    await safe_send(
-                                        AgentTextMessage(
-                                            session_id=session_id,
-                                            text=part.text,
-                                        ).model_dump()
-                                    )
+                                    text = part.text.strip()
+                                    # Filter out tool name vocalizations — the native-audio
+                                    # model sometimes speaks function call names aloud
+                                    _tool_names = ("generate_story_page", "finish_story")
+                                    if text and not any(tn in text.lower() for tn in _tool_names):
+                                        await safe_send(
+                                            AgentTextMessage(
+                                                session_id=session_id,
+                                                text=text,
+                                            ).model_dump()
+                                        )
+                                    elif text:
+                                        logger.debug("Filtered tool vocalization: %s", text[:100])
 
                     # run_live ended normally (session completed)
-                    logger.info("Agent live loop ended normally")
+                    logger.info("Agent live loop ended normally (retry_count=%d)", retry_count)
                     break
 
                 except Exception as e:

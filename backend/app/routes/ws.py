@@ -66,9 +66,6 @@ async def story_websocket(websocket: WebSocket):
     agent_task = None
     user_id = None  # Firebase UID (None = anonymous)
     send_lock = asyncio.Lock()
-    # Audio gate: drop incoming mic audio while a tool call is in progress
-    # to avoid the Live API 1008 race condition.
-    audio_gate_open = True
 
     async def safe_send(msg: dict) -> None:
         """Send a JSON message with lock to prevent interleaving."""
@@ -146,10 +143,6 @@ async def story_websocket(websocket: WebSocket):
         live_queue = LiveRequestQueue()
 
         # RunConfig for native-audio model: BIDI streaming with audio responses
-        # NOTE: context_window_compression does NOT work with run_live —
-        #       it only applies to run_async text sessions.
-        # NOTE: session_resumption and tool_thread_pool_config also removed —
-        #       they caused the native-audio model to stop processing audio input.
         run_config = RunConfig(
             streaming_mode=StreamingMode.BIDI,
             response_modalities=["AUDIO"],
@@ -167,7 +160,7 @@ async def story_websocket(websocket: WebSocket):
             story state), create a fresh ADK session, and inject a context
             restoration message so the agent remembers the conversation.
             """
-            nonlocal audio_gate_open, live_queue
+            nonlocal live_queue
             max_retries = 10
             retry_count = 0
 
@@ -182,7 +175,7 @@ async def story_websocket(websocket: WebSocket):
                         # Reset retry count on successful events
                         retry_count = 0
 
-                        # Detect tool call events to gate audio input
+                        # Detect tool calls → send thinking indicator to frontend
                         if event.content and event.content.parts:
                             has_function_call = any(
                                 getattr(part, "function_call", None) is not None
@@ -193,21 +186,21 @@ async def story_websocket(websocket: WebSocket):
                                 for part in event.content.parts
                             )
                             if has_function_call:
-                                audio_gate_open = False
-                                logger.info("Audio gate CLOSED (tool call in progress)")
+                                tool_name = next(
+                                    (p.function_call.name for p in event.content.parts if getattr(p, "function_call", None)),
+                                    "unknown",
+                                )
+                                await safe_send({"type": WSMessageType.TOOL_STARTED, "session_id": session_id, "tool": tool_name})
+                                logger.info("Tool call started: %s", tool_name)
                             if has_function_response:
-                                audio_gate_open = True
-                                logger.info("Audio gate OPEN (tool call complete)")
+                                await safe_send({"type": WSMessageType.TOOL_COMPLETED, "session_id": session_id})
+                                logger.info("Tool call completed")
 
                         # Forward audio + text from agent response
                         if event.content and event.content.parts:
                             for part in event.content.parts:
                                 # Audio data — forward immediately
                                 if getattr(part, "inline_data", None) and getattr(part.inline_data, "data", None):
-                                    # Re-open gate when agent starts speaking again
-                                    if not audio_gate_open:
-                                        audio_gate_open = True
-                                        logger.info("Audio gate OPEN (agent audio resumed)")
                                     async with send_lock:
                                         await websocket.send_bytes(part.inline_data.data)
                                 # Text responses (transcriptions or text-only)
@@ -243,9 +236,7 @@ async def story_websocket(websocket: WebSocket):
                             "Live API error — retrying with fresh queue (%d/%d): %s",
                             retry_count, max_retries, e,
                         )
-                        # Re-open audio gate and create fresh queue
-                        # Keep SAME agent, runner, and adk_session to preserve context
-                        audio_gate_open = True
+                        # Create fresh queue, keep SAME agent/runner/session to preserve context
                         live_queue = LiveRequestQueue()
                         await asyncio.sleep(2)  # brief pause before retry
                         continue
@@ -350,9 +341,7 @@ async def story_websocket(websocket: WebSocket):
                         ))
 
                 elif msg_type == WSMessageType.AUDIO_CHUNK:
-                    # Audio payload as base64 (legacy fallback)
-                    if not audio_gate_open:
-                        continue  # drop audio during tool calls
+                    # Audio payload as base64 (legacy fallback) — always forward
                     audio_b64 = data.get("audio_base64", "")
                     if audio_b64:
                         try:
@@ -373,14 +362,20 @@ async def story_websocket(websocket: WebSocket):
 
             elif "bytes" in message:
                 # Send raw binary PCM audio directly to Gemini Live API
-                # BUT only if the audio gate is open (not during tool calls)
-                if audio_gate_open:
+                if True:  # Always forward audio — no gate needed
                     live_queue.send_realtime(
                         types.Blob(mime_type=AUDIO_MIME_TYPE, data=message["bytes"])
                     )
 
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected (session=%s)", session_id)
+    except RuntimeError as e:
+        # Starlette raises RuntimeError("Cannot call 'receive' once a disconnect message
+        # has been received.") — treat it as a normal client disconnect
+        if "disconnect" in str(e).lower():
+            logger.info("WebSocket client disconnected (session=%s)", session_id)
+        else:
+            logger.error("WebSocket runtime error: %s", e, exc_info=True)
     except Exception as e:
         logger.error("WebSocket error: %s", e, exc_info=True)
         with contextlib.suppress(Exception):

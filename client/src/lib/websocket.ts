@@ -9,9 +9,16 @@ import { getIdToken } from "./firebase";
 const wsScheme = window.location.protocol === "https:" ? "wss:" : "ws:";
 const httpScheme = window.location.protocol === "https:" ? "https:" : "http:";
 
+// In production (Cloud Run) backend is on the same host; in dev it's on :8001
 const WS_BASE =
   import.meta.env.VITE_WS_URL ||
-  `${wsScheme}//${window.location.hostname}:8001`;
+  `${wsScheme}//${window.location.hostname}${window.location.port === "5000" ? ":8001" : ""}`;
+
+// Base URL for REST API calls (used by SpeakScreen etc.)
+export const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  `${httpScheme}//${window.location.hostname}${window.location.port === "5000" ? ":8001" : ""}`;
+
 
 export interface StoryConfig {
   style: string;
@@ -46,6 +53,8 @@ export type MessageHandler = {
   onStatus?: (message: string) => void;
   onError?: (message: string) => void;
   onClose?: () => void;
+  onToolStarted?: (tool: string) => void;
+  onToolCompleted?: () => void;
 };
 
 /**
@@ -213,6 +222,14 @@ export async function connectToStory(
               reject(new Error(data.message || "Server error"));
             }
             break;
+
+          case "tool_started":
+            handlers.onToolStarted?.(data.tool || "unknown");
+            break;
+
+          case "tool_completed":
+            handlers.onToolCompleted?.();
+            break;
         }
       } catch (e) {
         console.error("Failed to parse WebSocket message:", e);
@@ -255,10 +272,6 @@ export async function fetchStories(): Promise<
 > {
   const token = await getIdToken();
   if (!token) return [];
-
-  const API_BASE =
-    import.meta.env.VITE_API_URL ||
-    `${httpScheme}//${window.location.hostname}:8001`;
 
   const res = await fetch(`${API_BASE}/api/stories`, {
     headers: { Authorization: `Bearer ${token}` },

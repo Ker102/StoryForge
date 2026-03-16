@@ -9,7 +9,7 @@ interface StorySettingsProps {
 const STYLES = [
   { id: 'watercolour', icon: <Brush />, label: 'Watercolor' },
   { id: 'dreamy_pastel', icon: <Palette />, label: 'Pastel' },
-  { id: 'retro_pixel', icon: <LayoutGrid />, label: 'Pixel Art' },
+  { id: 'pixel_art', icon: <LayoutGrid />, label: 'Pixel Art' },
   { id: 'ink_sketch', icon: <Pencil />, label: 'Ink Sketch' },
 ];
 

@@ -1,0 +1,27 @@
+# Secrets — never bake into Docker image
+backend/serviceAccountKey.json
+backend/.env
+backend/.env.*
+*.pem
+*.key
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Node
+node_modules/
+client/node_modules/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+backend/.venv/
+
+# Build artifacts
+dist/
